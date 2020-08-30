@@ -48,7 +48,7 @@ void initBluetoothUART() {
     BRG16 = 0;
     SPBRG = 25; // 9600 Baud rate
 
-    SYNC = 0; // Asynchronous mode
+//    SYNC = 0; // Asynchronous mode
     SPEN  = 1;    // Enable serial port pins
 
     // Enable Tx and Rx of UART
