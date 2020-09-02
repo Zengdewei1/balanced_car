@@ -43,24 +43,33 @@ void init_args(void) {
 }
 
 void initAccelerometer(void) {
-    
+    return;
 }
 
 void initGyroscope(void) {
-    
+    return;
 }
 
 void init_i2c(void) {  
     // I2C programming guide
     // https://electronics.stackexchange.com/questions/417806/pic16f18877-using-i2c-to-read-sensor-lsm9ds0-value
-    SSP2CON1.SSPEN = 0b1;       // enable the SSP
-    SSP2CON1.SSPM = 0b1000;     // i2c baud rate clock = Fosc/(4*(SSP2ADD+1))
-    // SSP2 control register
-    SSP2CON3.PCIE = 0;          // enable interrupt on stop bit
-    SSP2CON3.SDAHT = 1;         // set SDA hold time to at least 300ns
-    // SSP2 status register
-    SSP2STAT.SMP = 0b1;         // sample at end of data output time
-    SSP2STAT.CKE = 0b1;         // enable input logic so that thresholds are compliant with SMBus
+    // set the rc3(scl) and rc4(sda) as input for iic master mode
+    TRISCbits.TRISC3 = 1;
+    TRISCbits.TRISC4 = 1;
+    // set the ssp working mode as iic master mode
+    SSP2CON1bits.SSPM = 0b1000;     // i2c baud rate clock = Fosc/(4*(SSP2ADD+1))
+    // TODO set baud rate
+    SSP2ADD = 100;                  // baud rate: (ADD+1)*4/Fosc
+    // enable interrupt on stop bit
+//    SSP2CON3bits.PCIE = 0;
+    // optionally set the sda hold time to at least 300ns after the falling edge of scl
+    SSP2CON3bits.SDAHT = 1;         // set SDA hold time to at least 300ns
+    // disable the slew rate control
+    SSP2STATbits.SMP = 0b1;
+    // enable input logic so that thresholds are compliant with SMBus
+    SSP2STATbits.CKE = 0b1;         
+    // trigger up the ssp2
+    SSP2CON1bits.SSPEN = 0b1;
 }
 
 void initBluetoothUART(void) {
@@ -74,7 +83,7 @@ void initBluetoothUART(void) {
     BRG16 = 0;
     SPBRG = 25; // 9600 Baud rate
 
-    SYNC = 0; // Asynchronous mode
+    TXSTAbits_t.SYNC = 0;     // Asynchronous mode
     SPEN  = 1;    // Enable serial port pins
 
     // Enable Tx and Rx of UART
