@@ -51,18 +51,16 @@ void initGyroscope(void) {
 }
 
 void init_i2c(void) {  
-    // ??I2C????
+    // I2C programming guide
     // https://electronics.stackexchange.com/questions/417806/pic16f18877-using-i2c-to-read-sensor-lsm9ds0-value
-    // SSP2???????1
-    SSP2CON1.SSPEN = 0b1;       // ??SSP??
-    SSP2CON1.SSPM = 0b1000;     // i2c??? clock = Fosc/(4*(SSP2ADD+1))
-    // SSP2???????2
-    // SSP3???????3
-    SSP2CON3.PCIE = 0;          // ??stop bit??
-    SSP2CON3.SDAHT = 1;         // SDA???????300ns
-    // SSP2???????
-    SSP2STAT.SMP = 0b1;         // ??????
-    SSP2STAT.CKE = 0b1;         // ??input logic
+    SSP2CON1.SSPEN = 0b1;       // enable the SSP
+    SSP2CON1.SSPM = 0b1000;     // i2c baud rate clock = Fosc/(4*(SSP2ADD+1))
+    // SSP2 control register
+    SSP2CON3.PCIE = 0;          // enable interrupt on stop bit
+    SSP2CON3.SDAHT = 1;         // set SDA hold time to at least 300ns
+    // SSP2 status register
+    SSP2STAT.SMP = 0b1;         // sample at end of data output time
+    SSP2STAT.CKE = 0b1;         // enable input logic so that thresholds are compliant with SMBus
 }
 
 void initBluetoothUART(void) {
