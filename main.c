@@ -50,7 +50,7 @@ void initGyroscope(void) {
     return;
 }
 
-void init_i2c(void) {  
+void init_i2c(void) {    // TODO determine if SSP2 correct
     // I2C programming guide
     // https://electronics.stackexchange.com/questions/417806/pic16f18877-using-i2c-to-read-sensor-lsm9ds0-value
     // set the rc3(scl) and rc4(sda) as input for iic master mode
