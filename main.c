@@ -14,7 +14,6 @@
 #include "bt.h"
 #include "iic.h"
 
-//void init_args();
 void motor1_run();
 void init_oc();
 void set_eusart();
@@ -56,13 +55,13 @@ unsigned int recv_data(){
 }
 
 void main(void) {
-    init_args();
-    iic_init();
+
     init_oc();
     init_port();
     set_interrupt();
     set_pps();
     set_eusart();
+        iic_init();
     unsigned int i = 0;
     while (1) {
         i++;
