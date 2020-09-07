@@ -1,62 +1,27 @@
-/*
- * File:   main.c
- * Author: zengdewei123
- *
- * Created on 2020?8?25?, ??2:57
- */
-
 #pragma config RSTOSC = HFINT32 // Power-up default value for COSC bits (HFINTOSC with OSCFRQ= 32 MHz and CDIV = 1:1)
 #pragma config WDTE = OFF       // WDT operating mode (WDT Disabled, SWDTEN is ignored)
 
 #include <xc.h>
-
 #include <pic16f18854.h>
 #include "bt.h"
 #include "iic.h"
 
-void motor1_run();
-void init_oc();
-void set_eusart();
-void test_eusart_send();
-void set_pps();
-void init_port();
-void set_interrupt();
-unsigned int recv_data();
+void motor1_run(void);
+void init_osc(void);
+void set_eusart(void);
+void test_eusart_send(void);
+void set_pps(void);
+void init_port(void);
+void set_interrupt(void);
+unsigned int recv_data(void);
 void init_accelerometer(void);
 void init_gyroscope(void);
-
-void interrupt irs_routine() {
-    //  PERIPHERAL INTERRUPT STATUS REGISTER 0
-    if (PIR0bits.INTF == 1) {
-        PIE0bits.INTE = 0;
-        //        disable_out();
-        recv_data();
-        //        enable_out();
-        //        out_reset();
-        PIR0bits.INTF = 0;
-        PIE0bits.INTE = 1;
-    }
-}
-
-unsigned int recv_data() {
-    int i = 0, k = 0;
-    unsigned int t = 0;
-    // CREN enables the receiver circuitry of the EUSART
-    if (RC1STAbits.OERR == 1) {
-        RC1STAbits.CREN = 0;
-        RC1STAbits.CREN = 1;
-    }
-    if (PIR3bits.RCIF == 1) {
-        while (PIR3bits.RCIF != 1);
-        t = RC1REG;
-    }
-    while (PORTAbits.RA0 == 1);
-    return t;
-}
+unsigned int recv_data(void);
+void __interrupt() irs_routine(void);
 
 void main(void) {
 
-    init_oc();
+    init_osc();
     init_port();
     set_interrupt();
     set_pps();
@@ -77,17 +42,18 @@ void main(void) {
     return;
 }
 
-//void init_args() 
-//{
-//    ANSELA = 0;
-//    ANSELB = 0;
-//    TRISA = 0B00011111;
-//    TRISB=0B11110000;
-//    TRISC = 0;
-//    LATA = 0B00000000;
-//    LATB = 0b11111111;
-//    return;
-//}
+void __interrupt() irs_routine(void) {
+    //  PERIPHERAL INTERRUPT STATUS REGISTER 0
+    if (PIR0bits.INTF == 1) {
+        PIE0bits.INTE = 0;
+        //        disable_out();
+        recv_data();
+        //        enable_out();
+        //        out_reset();
+        PIR0bits.INTF = 0;
+        PIE0bits.INTE = 1;
+    }
+}
 
 void init_port() {
     //uart
@@ -115,7 +81,23 @@ void init_port() {
     TRISCbits.TRISC2 = 0;
 }
 
-void init_oc() {
+unsigned int recv_data() {
+    int i = 0, k = 0;
+    unsigned int t = 0;
+    // CREN enables the receiver circuitry of the EUSART
+    if (RC1STAbits.OERR == 1) {
+        RC1STAbits.CREN = 0;
+        RC1STAbits.CREN = 1;
+    }
+    if (PIR3bits.RCIF == 1) {
+        while (PIR3bits.RCIF != 1);
+        t = RC1REG;
+    }
+    while (PORTAbits.RA0 == 1);
+    return t;
+}
+
+void init_osc() {
     // enable the EXTOSC with 4x PLL, 4 MHz
     OSCCON1bits.NOSC = 0b000;
     OSCCON1bits.NDIV = 0b0000;
@@ -206,3 +188,16 @@ void test_eusart_send() {
 void motor1_run() {
     LATAbits.LATA5 = 1;
 }
+
+
+//void init_args() 
+//{
+//    ANSELA = 0;
+//    ANSELB = 0;
+//    TRISA = 0B00011111;
+//    TRISB=0B11110000;
+//    TRISC = 0;
+//    LATA = 0B00000000;
+//    LATB = 0b11111111;
+//    return;
+//}

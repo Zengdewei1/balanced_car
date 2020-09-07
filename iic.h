@@ -1,12 +1,7 @@
-/* 
- * File:   iic.h
- * Author: leegenux
- *
- * Created on September 5, 2020, 11:03 AM
- */
-
 #ifndef IIC_H
 #define	IIC_H
+
+#include <stdint.h>
 
 #ifdef	__cplusplus
 extern "C" {
