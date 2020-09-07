@@ -19,8 +19,36 @@ void init_gyroscope(void);
 unsigned int recv_data(void);
 void __interrupt() irs_routine(void);
 
-void main(void) {
+unsigned int data = 0;
 
+void interrupt irs_routine() {
+   //  PERIPHERAL INTERRUPT STATUS REGISTER 0
+   if (PIR0bits.INTF == 1) {
+       PIE0bits.INTE = 0;
+//        disable_out();
+        recv_data();
+//        enable_out();
+//        out_reset();
+       PIR0bits.INTF = 0;
+       PIE0bits.INTE = 1;
+   }
+}
+
+unsigned int recv_data(){
+   int i = 0, k = 0;
+    // CREN enables the receiver circuitry of the EUSART
+    if(RC1STAbits.OERR == 1) {
+        RC1STAbits.CREN = 0;
+        RC1STAbits.CREN = 1;
+    }
+    if(PIR3bits.RCIF == 1){
+        while(PIR3bits.RCIF != 1);
+        data = RC1REG;
+    }
+}
+
+void main(void) {
+    init_oc();
     init_osc();
     init_port();
     set_interrupt();
@@ -28,17 +56,11 @@ void main(void) {
     set_eusart();
     iic_init();
     unsigned int i = 0;
-    while (1) {
-        i++;
-        if (i % 10000 == 0) {
-            test_eusart_send();
-            //            BT_broadcast();
+    while (1){
+        if (data != 0){
+            motor1_run();
         }
-        //        uint8_t get = BT_get_char();
-        //        if (get == 'w'){
-        //            motor1_run();
-        //        }     
-    }
+    }  
     return;
 }
 
@@ -61,6 +83,9 @@ void init_port() {
     //TX -> RC5
     TRISCbits.TRISC5 = 0;
     ANSELCbits.ANSC5 = 0;
+    //RX -> RC6
+    TRISCbits.TRISC6 = 0;
+    ANSELCbits.ANSC6 = 0;
     //RC3
     TRISCbits.TRISC3 = 0;
     ANSELCbits.ANSC3 = 0;
@@ -114,12 +139,18 @@ void init_gyroscope(void) {
 }
 
 void set_interrupt() {
+    // Global Interrupt Enable bit of the INTCON register
     INTCONbits.GIE = 1;
+    // Peripheral Interrupt Enable bit of the INTCON register
     INTCONbits.PEIE = 1;
     PIE0bits.INTE = 1;
 
     INTCONbits.INTEDG = 1;
     INTPPS = 0x00;
+
+    PIE3bits.RCIE = 1;
+
+    // RCIE, Interrupt Enable bit of the PIE3 register
 
     // T0CON0bits.T0EN = 1;
     // T0CON0bits.T016BIT = 0;
@@ -139,7 +170,7 @@ void set_eusart() {
 
     //set sync master clock from BRC
     TX1STAbits.CSRC = 1;
-    TX1STAbits.SYNC = 1;
+    TX1STAbits.SYNC = 0;
 
     // enable EUSART
     RC1STAbits.SPEN = 1;
@@ -148,9 +179,9 @@ void set_eusart() {
     TX1STAbits.TX9 = 0;
     RC1STAbits.RX9 = 0;
 
-    // for send
-    RC1STAbits.CREN = 0;
-    RC1STAbits.SREN = 0;
+    // for receive
+    RC1STAbits.CREN = 1;
+    RC1STAbits.SREN = 1;
 }
 
 void set_pps() {
@@ -178,11 +209,12 @@ void test_eusart_send() {
     TX1STAbits.TXEN = 1;
     // TX9D 9th bit
     TX1STAbits.TXEN = 0;
-    if (LATAbits.LATA5 == 1) {
-        LATAbits.LATA5 = 0;
-    } else if (LATAbits.LATA5 == 0) {
-        LATAbits.LATA5 = 1;
-    }
+    // if (LATAbits.LATA5 == 1){
+    //     LATAbits.LATA5 = 0;
+    // }
+    // else if (LATAbits.LATA5 == 0) {
+    //     LATAbits.LATA5 = 1;
+    // }
 }
 
 void motor1_run() {
