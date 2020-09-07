@@ -22,6 +22,9 @@ void set_pps();
 void init_port();
 void set_interrupt();
 unsigned int recv_data();
+void print(char *buffer);
+void print_char(char c);
+void send_data(uint8_t data);
 
 unsigned int data = 0;
 
@@ -58,7 +61,10 @@ void main(void) {
     set_pps();
     set_eusart();
     unsigned int i = 0;
+    char *buf = "111111111\n\r";
     while (1){
+//        print(buf);
+        print_char('a');
         if (data != 0){
             motor1_run();
         }
@@ -126,6 +132,9 @@ void set_interrupt() {
     INTPPS = 0x00;
 
     PIE3bits.RCIE = 1;
+    
+    // esuart transmit interrupt disabled 
+    PIE3bits.TXIE = 0;
 
     // RCIE, Interrupt Enable bit of the PIE3 register
 
@@ -161,6 +170,28 @@ void set_eusart() {
     RC1STAbits.SREN = 1;
 }
 
+void send_data(uint8_t data) {
+    TX1STAbits.TXEN = 1;
+    TXREG = 0;
+    TX1STAbits.TXEN = 0;
+}
+
+void print(char *buffer) {
+    char ch;
+    TX1STAbits.TXEN = 1;
+    while((ch = buffer++) != 0) {
+        TXREG = ch;
+    }
+    TX1STAbits.TXEN = 0;
+}
+
+void print_char(char c){
+    TX1STAbits.TXEN = 1;
+    TXREG = c;
+    TX1STAbits.TXEN = 0;
+}
+
+
 void set_pps() {
     // ref https://www.youtube.com/watch?v=tf2SfSm6fQg
     //EURSART IN
@@ -171,7 +202,7 @@ void set_pps() {
     // OUTPUT SOURCE SELECTION REGISTER
     //EURSART OUT: TX -> RC5
     //RC0PPSbits.RC5PPS = 0X16;
-    RC5PPS = 0x16;
+    RC5PPS = 0x10;
 
     // RXPPS = 0X0C;RB4->RX1
     // RA0PPS = 0X14;TX->RA0
