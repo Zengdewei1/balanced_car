@@ -1,17 +1,14 @@
-/*
- * File:   main.c
- * Author: zengdewei123
- *
- * Created on 2020?8?25?, ??2:57
- */
-
 #pragma config RSTOSC = HFINT32 // Power-up default value for COSC bits (HFINTOSC with OSCFRQ= 32 MHz and CDIV = 1:1)
 #pragma config WDTE = OFF       // WDT operating mode (WDT Disabled, SWDTEN is ignored)
 
 #include <xc.h>
-
 #include <pic16f18854.h>
 #include "bt.h"
+
+#define SYSCLK 8000000          // 32 MHz divided by 4
+
+// pass OSC
+// pass UART
 
 //void init_args();
 void motor1_run();
@@ -28,7 +25,7 @@ void send_data(uint8_t data);
 
 unsigned int data = 0;
 
-void interrupt irs_routine() {
+void __interrupt() irs_routine() {
    //  PERIPHERAL INTERRUPT STATUS REGISTER 0
    if (PIR0bits.INTF == 1) {
        PIE0bits.INTE = 0;
@@ -52,6 +49,7 @@ unsigned int recv_data(){
         while(PIR3bits.RCIF != 1);
         data = RC1REG;
     }
+   return data;
 }
 
 void main(void) {
@@ -63,8 +61,8 @@ void main(void) {
     unsigned int i = 0;
     char *buf = "111111111\n\r";
     while (1){
-//        print(buf);
-        print_char('a');
+        print(buf);
+//        print_char('a');
         if (data != 0){
             motor1_run();
         }
@@ -114,11 +112,12 @@ void init_port() {
 }
 
 void init_oc() {
-    // enable the EXTOSC with 4x PLL, 4 MHz
-    OSCCON1bits.NOSC = 0b000;
-    OSCCON1bits.NDIV = 0b0000;
-    // Reserved
-    OSCFRQbits.HFFRQ = 0b0111;
+    // HFINTOSC
+    OSCCON1bits.NOSC = 0b110;
+    // 32 MHz
+    OSCFRQbits.HFFRQ = 0b110;
+    // 4x divider
+    OSCCON1bits.NDIV = 0b0010;
 }
 
 void set_interrupt() {
@@ -148,21 +147,23 @@ void set_interrupt() {
 }
 
 void set_eusart() {
-    //set BRC default
-    // Fosc / 4
+    // set BRC default
+    // BRG16 bit
     BAUD1CONbits.BRG16 = 1;
-    SP1BRGL = 0xCF;
-    SP1BRGH = 0x00;
-
-    //set sync master clock from BRC
+    SP1BRGL = 207;             // TODO
+    SP1BRGH = 0;              //
+    // master mode -- internal clock source
     TX1STAbits.CSRC = 1;
-    TX1STAbits.SYNC = 0;
-
-    // enable EUSART
-    RC1STAbits.SPEN = 1;
-    
-    // 9 bit send
+    // sync mode
+    TX1STAbits.SYNC = 1;
+    // disable 9-bit mode
     TX1STAbits.TX9 = 0;
+    // enable transmit
+    TX1STAbits.TXEN = 1;
+    
+    // enable eusart
+    RC1STAbits.SPEN = 1;
+    // disable 9-bit
     RC1STAbits.RX9 = 0;
 
     // for receive
@@ -172,17 +173,16 @@ void set_eusart() {
 
 void send_data(uint8_t data) {
     TX1STAbits.TXEN = 1;
-    TXREG = 0;
+    TXREG = data;
     TX1STAbits.TXEN = 0;
 }
 
 void print(char *buffer) {
     char ch;
-    TX1STAbits.TXEN = 1;
-    while((ch = buffer++) != 0) {
+    while((ch = *(buffer++)) != 0) {
+        while(!TRMT);
         TXREG = ch;
     }
-    TX1STAbits.TXEN = 0;
 }
 
 void print_char(char c){
