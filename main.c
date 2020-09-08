@@ -61,10 +61,10 @@ void main(void) {
     set_pps();
     set_eusart();
     unsigned int i = 0;
-    char *buf = "111111111\n\r";
+    char *buf = "10101100\n\r";
     while (1){
-//        print(buf);
-        print_char('a');
+        print(buf);
+//        print_char('a');
         if (data != 0){
             motor1_run();
         }
@@ -91,7 +91,7 @@ void init_port() {
     TRISCbits.TRISC5 = 0;
     ANSELCbits.ANSC5 = 0;
     //RX -> RC6
-    TRISCbits.TRISC6 = 0;
+    TRISCbits.TRISC6 = 1;
     ANSELCbits.ANSC6 = 0;
     //RC3
     TRISCbits.TRISC3 = 0;
@@ -155,11 +155,12 @@ void set_eusart() {
     SP1BRGH = 0x00;
 
     //set sync master clock from BRC
-    TX1STAbits.CSRC = 1;
+   // TX1STAbits.CSRC = 1;
     TX1STAbits.SYNC = 0;
 
     // enable EUSART
-    RC1STAbits.SPEN = 1;
+    TX1STAbits.TXEN=1;
+    RC1STAbits.SPEN = 1; 
     
     // 9 bit send
     TX1STAbits.TX9 = 0;
@@ -172,7 +173,7 @@ void set_eusart() {
 
 void send_data(uint8_t data) {
     TX1STAbits.TXEN = 1;
-    TXREG = 0;
+    TX1REG = 0;
     TX1STAbits.TXEN = 0;
 }
 
@@ -180,14 +181,14 @@ void print(char *buffer) {
     char ch;
     TX1STAbits.TXEN = 1;
     while((ch = buffer++) != 0) {
-        TXREG = ch;
+        TX1REG = 'a';
     }
     TX1STAbits.TXEN = 0;
 }
 
 void print_char(char c){
     TX1STAbits.TXEN = 1;
-    TXREG = c;
+    TX1REG = c;
     TX1STAbits.TXEN = 0;
 }
 
