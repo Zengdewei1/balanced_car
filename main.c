@@ -3,44 +3,46 @@
 
 #include <xc.h>
 #include <pic16f18854.h>
-#include "bt.h"
 
-#define SYSCLK 8000000          // 32 MHz divided by 4
 
-// pass OSC
-// pass UART
-
-//void init_args();
-void motor1_run();
 void init_oc();
-void set_eusart();
-void test_eusart_send();
 void set_pps();
-void init_port();
 void set_interrupt();
-unsigned int recv_data();
-void print(char *buffer);
-void print_char(char c);
-void send_data(uint8_t data);
+void init_port();
+void set_eusart();
+void send_data();
+void recv_data();
+void enable_out();
+void disable_out();
+void out_reset();
+void delay(int delay_time);
 
 unsigned int data = 0;
 
 void __interrupt() irs_routine() {
    //  PERIPHERAL INTERRUPT STATUS REGISTER 0
    if (PIR0bits.INTF == 1) {
-       PIE0bits.INTE = 0;
-//        disable_out();
+        PIE0bits.INTE = 0;
+        disable_out();
         recv_data();
-//        enable_out();
-//        out_reset();
+        enable_out();
+        out_reset();
        PIR0bits.INTF = 0;
        PIE0bits.INTE = 1;
    }
 }
 
-unsigned int recv_data(){
-   int i = 0, k = 0;
-    // CREN enables the receiver circuitry of the EUSART
+void send_data(){
+    enable_out();
+    out_reset();
+    do{
+        while (PIR3bits.TXIF != 1);
+        TX1REG = 0b10101100;
+    }while(0);
+    disable_out();
+}
+
+void recv_data(){
     if(RC1STAbits.OERR == 1) {
         RC1STAbits.CREN = 0;
         RC1STAbits.CREN = 1;
@@ -49,7 +51,6 @@ unsigned int recv_data(){
         while(PIR3bits.RCIF != 1);
         data = RC1REG;
     }
-   return data;
 }
 
 void main(void) {
@@ -58,45 +59,24 @@ void main(void) {
     set_interrupt();
     set_pps();
     set_eusart();
-    unsigned int i = 0;
-    char *buf = "10101100\n\r";
-    while (1){
-        print(buf);
-//        print_char('a');
+    while (1)
+    {
+        send_data();
         if (data != 0){
-            motor1_run();
+            LATAbits.LATA5 = 1;
         }
-    }  
+    }
+    
     return;
 }
 
-//void init_args() 
-//{
-//    ANSELA = 0;
-//    ANSELB = 0;
-//    TRISA = 0B00011111;
-//    TRISB=0B11110000;
-//    TRISC = 0;
-//    LATA = 0B00000000;
-//    LATB = 0b11111111;
-//    return;
-//}
 
 void init_port() {
     //uart
     
-    //TX -> RC5
-    TRISCbits.TRISC5 = 0;
-    ANSELCbits.ANSC5 = 0;
     //RX -> RC6
-    TRISCbits.TRISC6 = 1;
+    TRISCbits.TRISC6 = 0;
     ANSELCbits.ANSC6 = 0;
-    //RC3
-    TRISCbits.TRISC3 = 0;
-    ANSELCbits.ANSC3 = 0;
-    //RC7
-    TRISCbits.TRISC7 = 1;
-    ANSELCbits.ANSC7 = 0;
     
     // motor1
     // RA5 out
@@ -106,140 +86,100 @@ void init_port() {
     
     //motor2
     // RC1 out
-    TRISCbits.TRISC1 = 0;
+    TRISAbits.TRISA6 = 0;
     // RC2 out
-    TRISCbits.TRISC2 = 0;
+    TRISCbits.TRISC1 = 0;
+
+    //motor1
+    TRISAbits.TRISA0 = 1;
+    TRISAbits.TRISA1 = 1;
+    TRISAbits.TRISA2 = 1;
+    TRISAbits.TRISA3 = 1;
 }
 
 void init_oc() {
     // HFINTOSC
     OSCCON1bits.NOSC = 0b000;
     // 32 MHz
-    OSCFRQbits.HFFRQ = 0b110;
+    OSCFRQbits.HFFRQ = 0b0111;
     // 1x divider
     OSCCON1bits.NDIV = 0b0000;
 }
 
 void set_interrupt() {
-    // Global Interrupt Enable bit of the INTCON register
     INTCONbits.GIE = 1;
-    // Peripheral Interrupt Enable bit of the INTCON register
     INTCONbits.PEIE = 1;
     PIE0bits.INTE = 1;
 
     INTCONbits.INTEDG = 1;
     INTPPS = 0x00;
-
-    PIE3bits.RCIE = 1;
-    
-    // esuart transmit interrupt disabled 
-    PIE3bits.TXIE = 0;
-
-    // RCIE, Interrupt Enable bit of the PIE3 register
-
-    // T0CON0bits.T0EN = 1;
-    // T0CON0bits.T016BIT = 0;
-    // T0CON0bits.T0OUTPS = 0b0000;
-    // T0CON1bits.T0CS = 0b010;
-    // T0CON1bits.T0ASYNC = 0;
-    // T0CON1bits.T0CKPS = 0b1100;
-    // TMR0H = 0x7C;
 }
 
 void set_eusart() {
-    // set BRC default
-    // BRG16 bit
     BAUD1CONbits.BRG16 = 1;
     SP1BRGL = 0xCF;
     SP1BRGH = 0x00;
 
     //set sync master clock from BRC
-   // TX1STAbits.CSRC = 1;
-    TX1STAbits.SYNC = 0;
-
-    // enable EUSART
-    TX1STAbits.TXEN=1;
-    RC1STAbits.SPEN = 1; 
-    
-    // 9 bit send
-    SP1BRGL = 207;             // TODO
-    SP1BRGH = 0;              //
-    // master mode -- internal clock source
     TX1STAbits.CSRC = 1;
-    // sync mode
     TX1STAbits.SYNC = 1;
-    // disable 9-bit mode
+
     TX1STAbits.TX9 = 0;
-    // enable transmit
-    TX1STAbits.TXEN = 1;
-    
-    // enable eusart
-    RC1STAbits.SPEN = 1;
-    // disable 9-bit
     RC1STAbits.RX9 = 0;
 
-    // for receive
-    RC1STAbits.CREN = 1;
-    RC1STAbits.SREN = 1;
+    RC1STAbits.SPEN = 1;
+    RC1STAbits.CREN = 0;
 }
-
-void send_data(uint8_t data) {
-    TX1STAbits.TXEN = 1;
-    TX1REG = 0;
-    TXREG = data;
-    TX1STAbits.TXEN = 0;
-}
-
-void print(char *buffer) {
-    char ch;
-    TX1STAbits.TXEN = 1;
-    TXREG = 0b10101111;
-    while((ch = (buffer++)) != 0) {
-        while(!TRMT);
-        TXREG = ch;
-    }
-}
-
-void print_char(char c){
-    TX1STAbits.TXEN = 1;
-    TX1REG = c;
-    TX1STAbits.TXEN = 0;
-}
-
 
 void set_pps() {
     // ref https://www.youtube.com/watch?v=tf2SfSm6fQg
     //EURSART IN
     // RC6 -> EUSART:RX1
-    RXPPSbits.RXPPS = 0X16;
+    // RXPPSbits.RXPPS = 0X;
     // RC6PPS = 0x15;
 
     // OUTPUT SOURCE SELECTION REGISTER
     //EURSART OUT: TX -> RC5
     //RC0PPSbits.RC5PPS = 0X16;
-    RC5PPS = 0x10;
+    // TXPPSbits.TXPPS = 0X15;
 
-    // RXPPS = 0X0C;RB4->RX1
-    // RA0PPS = 0X14;TX->RA0
-    
-    // ANSELBbits.ANSB5 = 0;
-    // TRISBbits.TRISB5 = 0;
+    //EURSART OUT: DT->RC5, TC/CK->RC6
+    RC5PPS = 0x11;
+    RC6PPS = 0x10;
 }
 
-void test_eusart_send(){
-    uint8_t send_b = 'a';
-    TX1REG = send_b;
+
+void enable_out() {
+    //ensble eusart
     TX1STAbits.TXEN = 1;
-    // TX9D 9th bit
-    TX1STAbits.TXEN = 0;
-    // if (LATAbits.LATA5 == 1){
-    //     LATAbits.LATA5 = 0;
-    // }
-    // else if (LATAbits.LATA5 == 0) {
-    //     LATAbits.LATA5 = 1;
-    // }
+    TX1STAbits.SYNC = 1;
+    RC1STAbits.CREN = 0;
 }
 
-void motor1_run(){
-    LATAbits.LATA5 = 1;
+void delay(int delay_time) {
+    int i = delay_time;
+    while (i > 0) {
+        --i;
+    }
+}
+
+void disable_out() {
+    delay(100);
+    //ensble eusart
+    TX1STAbits.TXEN = 0;
+    TX1STAbits.SYNC = 0;
+    RC1STAbits.CREN = 1;
+}
+
+void out_reset() {
+    delay(88); // i = 88 time = 50.3125us; i = 100 time = 57.0625us
+}
+
+void turn_off_all(int num) {
+    int i = num * 3;
+    while (i > 0) {
+        while (PIR3bits.TXIF != 1);
+        TX1REG = 0x00;
+        --i;
+    }
 }
