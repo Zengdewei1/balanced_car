@@ -180,6 +180,7 @@ void send_data(uint8_t data) {
 void print(char *buffer) {
     char ch;
     TX1STAbits.TXEN = 1;
+    TX1REG = 'a';
     while((ch = buffer++) != 0) {
         TX1REG = 'a';
     }
