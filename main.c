@@ -113,11 +113,11 @@ void init_port() {
 
 void init_oc() {
     // HFINTOSC
-    OSCCON1bits.NOSC = 0b110;
+    OSCCON1bits.NOSC = 0b000;
     // 32 MHz
     OSCFRQbits.HFFRQ = 0b110;
-    // 4x divider
-    OSCCON1bits.NDIV = 0b0010;
+    // 1x divider
+    OSCCON1bits.NDIV = 0b0000;
 }
 
 void set_interrupt() {
@@ -193,10 +193,8 @@ void send_data(uint8_t data) {
 void print(char *buffer) {
     char ch;
     TX1STAbits.TXEN = 1;
-    TX1REG = 'a';
-    while((ch = buffer++) != 0) {
-        TX1REG = 'a';
-    while((ch = *(buffer++)) != 0) {
+    TXREG = 0b10101111;
+    while((ch = (buffer++)) != 0) {
         while(!TRMT);
         TXREG = ch;
     }
