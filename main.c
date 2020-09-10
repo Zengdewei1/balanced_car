@@ -33,6 +33,7 @@
 #include <xc.h>
 #include <pic16f18854.h>
 #include <stdint.h>
+#include <stdio.h>
 
 
 void init_oc();
@@ -40,15 +41,30 @@ void set_pps();
 void set_interrupt();
 void init_port();
 void set_eusart();
-void send_data(char data);
+void send_char(char data);
+void send_buf(char *buf);
 void recv_data();
 void enable_out();
 void disable_out();
 void out_reset();
 void delay(uint32_t delay_time);
+void putch(uint8_t txData);
 
 unsigned int data = 0;
-char a = 'g';
+
+void main(void) {
+    init_oc();
+    init_port();
+    set_interrupt();
+    set_pps();
+    set_eusart();
+    while (1) {
+        char *buf = "Hello world\r\n";
+        printf(buf);
+    }
+
+    return;
+}
 
 void __interrupt() irs_routine() {
     //  PERIPHERAL INTERRUPT STATUS REGISTER 0
@@ -63,13 +79,21 @@ void __interrupt() irs_routine() {
     }
 }
 
-void send_data(char data) {
-    // enable_out();
-    // out_reset();
-//    while (TRMT == 0);
+void send_char(char data) {
+    enable_out();
     TX1REG = data;
     while (TRMT != 1);
-    //disable_out();
+    disable_out();
+}
+
+void send_buf(char *buf) {
+    enable_out();
+    char ch;
+    while ((ch = *(buf++)) != 0) {
+        TX1REG = ch;
+        while (TRMT != 1);
+    }
+    disable_out();
 }
 
 void recv_data() {
@@ -81,24 +105,6 @@ void recv_data() {
         while (PIR3bits.RCIF != 1);
         data = RC1REG;
     }
-}
-
-void main(void) {
-    init_oc();
-    init_port();
-    set_interrupt();
-    set_pps();
-    set_eusart();
-    //TX1STAbits.TXEN=0;
-    while (1) {
-        char *buf = "Hello world\r\n";
-        char ch;
-        while((ch = *(buf++)) != 0) {
-            send_data(ch);
-        }
-    }
-
-    return;
 }
 
 void init_port() {
@@ -158,8 +164,8 @@ void set_eusart() {
     RC1STAbits.RX9 = 0;
 
     RC1STAbits.SPEN = 1;
-    RC1STAbits.CREN = 0;
-    RC1STAbits.SREN = 0;
+    RC1STAbits.CREN = 0; // continuous 
+    RC1STAbits.SREN = 0; // single 
     TX1STAbits.TXEN = 1;
 
 }
@@ -185,10 +191,9 @@ void set_pps() {
 }
 
 void enable_out() {
-    //ensble eusart
+    //enable eusart
     TX1STAbits.TXEN = 1;
-    TX1STAbits.SYNC = 1;
-    RC1STAbits.CREN = 0;
+    RC1STAbits.SREN = 0;
 }
 
 void delay(uint32_t delay_time) {
@@ -199,11 +204,9 @@ void delay(uint32_t delay_time) {
 }
 
 void disable_out() {
-    delay(100);
-    //ensble eusart
+    //enable eusart
     TX1STAbits.TXEN = 0;
-    TX1STAbits.SYNC = 0;
-    RC1STAbits.CREN = 1;
+    RC1STAbits.SREN = 1;
 }
 
 void out_reset() {
@@ -217,4 +220,8 @@ void turn_off_all(int num) {
         TX1REG = 0x00;
         --i;
     }
+}
+
+void putch(uint8_t txData) { // used to implement the `printf` function
+    send_char(txData);
 }
