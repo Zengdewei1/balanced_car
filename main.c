@@ -42,41 +42,49 @@ void set_interrupt();
 void init_port();
 void set_eusart();
 void send_char(char data);
-void send_buf(char *buf);
-void recv_data();
+int recv_handler(char ch);
 void enable_out();
 void disable_out();
 void out_reset();
 void delay(uint32_t delay_time);
 void putch(uint8_t txData);
 
-unsigned int data = 0;
+char recvd_char = 0;
+int is_recvd = 0; // you should manually clear it
+
+void __interrupt() irs_routine() {
+    if (PIR3bits.RCIF) { // don't call any print function here
+        PIE3bits.RCIE = 0; // disable the RX interrupt
+        is_recvd = 1;
+        // handle overrun error
+        if (RC1STAbits.OERR == 1) {
+            RC1STAbits.CREN = 0;
+            RC1STAbits.CREN = 1;
+        }
+        do { // if frame error, keep reading RC1REG
+            recvd_char = RC1REG;
+        } while (RC1STAbits.FERR == 1);
+        recv_handler(recvd_char);
+        PIE3bits.RCIE = 1; // re-enable the RX interrupt
+    }
+}
 
 void main(void) {
+    // initialization
     init_oc();
     init_port();
     set_interrupt();
     set_pps();
     set_eusart();
+    // main loop
     while (1) {
-        char *buf = "Hello world\r\n";
-        printf(buf);
+        if (is_recvd) {
+            printf("%c\n", recvd_char);
+            is_recvd = 0; // clear the flag
+        }
     }
 
     return;
-}
-
-void __interrupt() irs_routine() {
-    //  PERIPHERAL INTERRUPT STATUS REGISTER 0
-    if (0) {// (PIR0bits.INTF == 1) {
-        PIE0bits.INTE = 0;
-        disable_out();
-        recv_data();
-        enable_out();
-        out_reset();
-        PIR0bits.INTF = 0;
-        PIE0bits.INTE = 1;
-    }
 }
 
 void send_char(char data) {
@@ -86,33 +94,18 @@ void send_char(char data) {
     disable_out();
 }
 
-void send_buf(char *buf) {
-    enable_out();
-    char ch;
-    while ((ch = *(buf++)) != 0) {
-        TX1REG = ch;
-        while (TRMT != 1);
-    }
-    disable_out();
-}
-
-void recv_data() {
-    if (RC1STAbits.OERR == 1) {
-        RC1STAbits.CREN = 0;
-        RC1STAbits.CREN = 1;
-    }
-    if (PIR3bits.RCIF == 1) {
-        while (PIR3bits.RCIF != 1);
-        data = RC1REG;
-    }
+int recv_handler(char ch) {
+    return 1;
 }
 
 void init_port() {
-    //uart
-
-    // TX-> RC6
+    // uart needs no explicit configuration
+    // RC6->TX
     TRISCbits.TRISC6 = 0;
     ANSELCbits.ANSC6 = 0;
+    // RC5->RX
+    TRISCbits.TRISC5 = 1;
+    ANSELCbits.ANSC5 = 0;
 
     // motor1
     // RA5 out
@@ -145,55 +138,34 @@ void init_oc() {
 void set_interrupt() {
     INTCONbits.GIE = 1;
     INTCONbits.PEIE = 1;
-    PIE0bits.INTE = 1;
 
-    INTCONbits.INTEDG = 1;
-    INTPPS = 0x00;
+    PIE3bits.RCIE = 1;
 }
 
 void set_eusart() {
     BAUD1CONbits.BRG16 = 0;
-    SP1BRGL = 207;
     SP1BRGH = 1;
+    SP1BRGL = 51;
 
     //set sync master clock from BRC
     TX1STAbits.CSRC = 1; // ignored in async
     TX1STAbits.SYNC = 0;
-
     TX1STAbits.TX9 = 0;
     RC1STAbits.RX9 = 0;
 
+    // defaults to asynchronous receiving mode
     RC1STAbits.SPEN = 1;
-    RC1STAbits.CREN = 0; // continuous 
-    RC1STAbits.SREN = 0; // single 
-    TX1STAbits.TXEN = 1;
-
+    RC1STAbits.CREN = 1; // continuous 
+    RC1STAbits.SREN = 1; // single 
+    TX1STAbits.TXEN = 0;
 }
 
 void set_pps() {
     // ref https://www.youtube.com/watch?v=tf2SfSm6fQg
-    //EURSART IN
-    // RC6 -> EUSART:RX1
-    // RXPPSbits.RXPPS = 0X;
-    // RC6PPS = 0x15;
-
-    // OUTPUT SOURCE SELECTION REGISTER
-    //EURSART OUT: TX -> RC5
-    //RC0PPSbits.RC5PPS = 0X16;
-    // TXPPSbits.TXPPS = 0X15;
-
-    //EURSART OUT: DT->RC5, TC/CK->RC6
-    //    RC5PPS = 0x11;
-    //    RC6PPS = 0x10;
-
-    // EUSART OUT: TX->RC6
+    // eusart out: TX->RC6
     RC6PPS = 0x10;
-}
-
-void enable_out() {
-    //enable eusart
-    TX1STAbits.TXEN = 1;
-    RC1STAbits.SREN = 0;
+    // eusart in:  RX->RC5
+    RXPPS = 0x15;
 }
 
 void delay(uint32_t delay_time) {
@@ -203,14 +175,18 @@ void delay(uint32_t delay_time) {
     }
 }
 
+void enable_out() {
+    //enable eusart
+    TX1STAbits.TXEN = 1;
+    RC1STAbits.SREN = 0;
+    RC1STAbits.CREN = 0;
+}
+
 void disable_out() {
     //enable eusart
     TX1STAbits.TXEN = 0;
     RC1STAbits.SREN = 1;
-}
-
-void out_reset() {
-    delay(88); // i = 88 time = 50.3125us; i = 100 time = 57.0625us
+    RC1STAbits.CREN = 1;
 }
 
 void turn_off_all(int num) {
@@ -224,4 +200,8 @@ void turn_off_all(int num) {
 
 void putch(uint8_t txData) { // used to implement the `printf` function
     send_char(txData);
+}
+
+void out_reset() {
+    delay(88); // i = 88 time = 50.3125us; i = 100 time = 57.0625us
 }
