@@ -72,6 +72,7 @@ void __interrupt() irs_routine() {
 void main(void) {
     // initialization
     init_oc();
+    init_osc();
     init_port();
     set_interrupt();
     set_pps();
@@ -133,6 +134,14 @@ void init_oc() {
     OSCFRQbits.HFFRQ = 0b110;
     // 1x divider
     OSCCON1bits.NDIV = 0b0000;
+}
+
+void init_accelerometer(void) {
+    return;
+}
+
+void init_gyroscope(void) {
+    return;
 }
 
 void set_interrupt() {
