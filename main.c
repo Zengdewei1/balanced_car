@@ -34,40 +34,21 @@
 #include <pic16f18854.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#include "uart.h"
 #include "iic.h"
 #include "bt.h"
-
 
 void init_oc();
 void set_pps();
 void set_interrupt();
 void init_port();
-void set_eusart();
-void send_char(char data);
-int recv_handler(char ch);
-void enable_out();
-void disable_out();
-void out_reset();
 void delay(uint32_t delay_time);
-void putch(uint8_t txData);
-
-char recvd_char = 0;
-int is_recvd = 0; // you should manually clear it
+void out_reset(void);
 
 void __interrupt() irs_routine() {
     if (PIR3bits.RCIF) { // don't call any print function here
-        PIE3bits.RCIE = 0; // disable the RX interrupt
-        is_recvd = 1;
-        // handle overrun error
-        if (RC1STAbits.OERR == 1) {
-            RC1STAbits.CREN = 0;
-            RC1STAbits.CREN = 1;
-        }
-        do { // if frame error, keep reading RC1REG
-            recvd_char = RC1REG;
-        } while (RC1STAbits.FERR == 1);
-        recv_handler(recvd_char);
-        PIE3bits.RCIE = 1; // re-enable the RX interrupt
+        recv_handler();
     }
 }
 
@@ -77,7 +58,9 @@ void main(void) {
     init_port();
     set_interrupt();
     set_pps();
-    set_eusart();
+    init_eusart();
+    init_iic();
+
     // main loop
     while (1) {
         if (is_recvd) {
@@ -89,26 +72,7 @@ void main(void) {
     return;
 }
 
-void send_char(char data) {
-    enable_out();
-    TX1REG = data;
-    while (TRMT != 1);
-    disable_out();
-}
-
-int recv_handler(char ch) {
-    return 1;
-}
-
 void init_port() {
-    // uart needs no explicit configuration
-    // RC6->TX
-    TRISCbits.TRISC6 = 0;
-    ANSELCbits.ANSC6 = 0;
-    // RC5->RX
-    TRISCbits.TRISC5 = 1;
-    ANSELCbits.ANSC5 = 0;
-
     // motor1
     // RA5 out
     TRISAbits.TRISA5 = 0;
@@ -152,24 +116,6 @@ void set_interrupt() {
     PIE3bits.RCIE = 1;
 }
 
-void set_eusart() {
-    BAUD1CONbits.BRG16 = 0;
-    SP1BRGH = 1;
-    SP1BRGL = 51;
-
-    //set sync master clock from BRC
-    TX1STAbits.CSRC = 1; // ignored in async
-    TX1STAbits.SYNC = 0;
-    TX1STAbits.TX9 = 0;
-    RC1STAbits.RX9 = 0;
-
-    // defaults to asynchronous receiving mode
-    RC1STAbits.SPEN = 1;
-    RC1STAbits.CREN = 1; // continuous 
-    RC1STAbits.SREN = 1; // single 
-    TX1STAbits.TXEN = 0;
-}
-
 void set_pps() {
     // ref https://www.youtube.com/watch?v=tf2SfSm6fQg
     // eusart out: TX->RC6
@@ -185,33 +131,7 @@ void delay(uint32_t delay_time) {
     }
 }
 
-void enable_out() {
-    //enable eusart
-    TX1STAbits.TXEN = 1;
-    RC1STAbits.SREN = 0;
-    RC1STAbits.CREN = 0;
-}
-
-void disable_out() {
-    //enable eusart
-    TX1STAbits.TXEN = 0;
-    RC1STAbits.SREN = 1;
-    RC1STAbits.CREN = 1;
-}
-
-void turn_off_all(int num) {
-    int i = num * 3;
-    while (i > 0) {
-        while (PIR3bits.TXIF != 1);
-        TX1REG = 0x00;
-        --i;
-    }
-}
-
-void putch(uint8_t txData) { // used to implement the `printf` function
-    send_char(txData);
-}
-
 void out_reset() {
     delay(88); // i = 88 time = 50.3125us; i = 100 time = 57.0625us
 }
+

@@ -1,7 +1,7 @@
 #include <pic16f18854.h>
 #include "iic.h"
 
-void iic_init(void) { // TODO determine if SSP1 correct
+void init_iic(void) { // TODO determine if SSP1 correct
     // I2C programming guide
     // https://electronics.stackexchange.com/questions/417806/pic16f18877-using-i2c-to-read-sensor-lsm9ds0-value
     // set the rc3(scl) and rc4(sda) as input for iic master mode
@@ -10,7 +10,7 @@ void iic_init(void) { // TODO determine if SSP1 correct
     // set the ssp working mode as iic master mode
     SSP1CON1bits.SSPM = 0b1000; // i2c baud rate clock = Fosc/(4*(SSP1ADD+1))
     // TODO set baud rate
-    SSP1ADD = 100; // baud rate: (SSP1ADD+1)*4/Fosc
+    SSP1ADD = 51; // baud rate: (SSP1ADD+1)*4/Fosc
     // enable interrupt on stop bit
     //    SSP1CON3bits.PCIE = 0;
     // optionally set the sda hold time to at least 300ns after the falling edge of scl
