@@ -34,6 +34,8 @@
 #include <pic16f18854.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "iic.h"
+#include "bt.h"
 
 
 void init_oc();
@@ -72,7 +74,6 @@ void __interrupt() irs_routine() {
 void main(void) {
     // initialization
     init_oc();
-    init_osc();
     init_port();
     set_interrupt();
     set_pps();
