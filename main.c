@@ -34,6 +34,8 @@
 #include <pic16f18854.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "iic.h"
+#include "MPU6050.h"
 
 
 void init_oc();
@@ -51,6 +53,8 @@ void putch(uint8_t txData);
 
 char recvd_char = 0;
 int is_recvd = 0; // you should manually clear it
+
+near volatile unsigned short Timerms;       //  Interrupt Timer counter in ms 
 
 void __interrupt() irs_routine() {
     if (PIR3bits.RCIF) { // don't call any print function here
@@ -76,6 +80,9 @@ void main(void) {
     set_interrupt();
     set_pps();
     set_eusart();
+    iic_init();
+    printf("init");
+    MPU6050_Test_I2C();
     // main loop
     while (1) {
         if (is_recvd) {
@@ -106,6 +113,10 @@ void init_port() {
     // RC5->RX
     TRISCbits.TRISC5 = 1;
     ANSELCbits.ANSC5 = 0;
+
+    // i2c
+    TRISCbits.TRISC3 = 1;
+    TRISCbits.TRISC4 = 1;
 
     // motor1
     // RA5 out
@@ -166,6 +177,9 @@ void set_pps() {
     RC6PPS = 0x10;
     // eusart in:  RX->RC5
     RXPPS = 0x15;
+
+    RC4PPS = 0x15;
+    RC3PPS = 0X14;
 }
 
 void delay(uint32_t delay_time) {
