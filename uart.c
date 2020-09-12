@@ -64,7 +64,6 @@ void disable_out() {
     RC1STAbits.CREN = 1;
 }
 
-
 void putch(uint8_t txData) { // used to implement the `printf` function
     send_char(txData);
 }

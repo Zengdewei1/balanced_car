@@ -12,7 +12,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-    
+
     char recvd_char = 0;
     int is_recvd = 0; // you should manually clear it
 

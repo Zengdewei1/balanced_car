@@ -39,12 +39,11 @@
 #include "iic.h"
 #include "bt.h"
 
-void init_oc();
 void set_pps();
 void set_interrupt();
 void init_port();
 void delay(uint32_t delay_time);
-void out_reset(void);
+void motor1_run(void);
 
 void __interrupt() irs_routine() {
     if (PIR3bits.RCIF) { // don't call any print function here
@@ -54,7 +53,7 @@ void __interrupt() irs_routine() {
 
 void main(void) {
     // initialization
-    init_oc();
+    // init_oc();
     init_port();
     set_interrupt();
     set_pps();
@@ -62,6 +61,7 @@ void main(void) {
     init_iic();
 
     // main loop
+    // motor1_run();
     while (1) {
         if (is_recvd) {
             printf("%c\n", recvd_char);
@@ -90,15 +90,6 @@ void init_port() {
     TRISAbits.TRISA1 = 1;
     TRISAbits.TRISA2 = 1;
     TRISAbits.TRISA3 = 1;
-}
-
-void init_oc() {
-    // HFINTOSC
-    OSCCON1bits.NOSC = 0b000;
-    // 32 MHz
-    OSCFRQbits.HFFRQ = 0b110;
-    // 1x divider
-    OSCCON1bits.NDIV = 0b0000;
 }
 
 void init_accelerometer(void) {
@@ -131,7 +122,19 @@ void delay(uint32_t delay_time) {
     }
 }
 
-void out_reset() {
-    delay(88); // i = 88 time = 50.3125us; i = 100 time = 57.0625us
+void motor1_run(void) {
+    LATAbits.LATA5 = 1;
 }
 
+//void out_reset() {
+//    delay(88); // i = 88 time = 50.3125us; i = 100 time = 57.0625us
+//}
+
+//void init_oc() {
+//    // HFINTOSC
+//    OSCCON1bits.NOSC = 0b000;
+//    // 32 MHz
+//    OSCFRQbits.HFFRQ = 0b110;
+//    // 1x divider
+//    OSCCON1bits.NDIV = 0b0000;
+//}
