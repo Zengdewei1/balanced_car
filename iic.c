@@ -1,18 +1,35 @@
 #include <pic16f18854.h>
+#include <stdio.h>
 #include "iic.h"
 
-void init_iic(void) { // TODO determine if SSP1 correct
+#define DEBUG
+#define IIC_TIMEOUT 300000      // approximately 1 sec
+
+// The following events will cause the SSP Interrupt Flag 
+// bit, SSPxIF, to be set (SSP interrupt, if enabled):
+//?Start condition detected
+//?Stop condition detected
+//?Data transfer byte transmitted/received
+//?Acknowledge transmitted/received
+//?Repeated Start generated
+
+void init_iic(void) {
     // I2C programming guide
     // https://electronics.stackexchange.com/questions/417806/pic16f18877-using-i2c-to-read-sensor-lsm9ds0-value
     // set the rc3(scl) and rc4(sda) as input for iic master mode
     TRISCbits.TRISC3 = 1;
     TRISCbits.TRISC4 = 1;
+    SSP1CLKPPS = 0x13; // rc3
+    SSP1DATPPS = 0x14; // rc4
+    RC3PPS = 0x14; // scl
+    RC4PPS = 0x15; // sda
+
     // set the ssp working mode as iic master mode
     SSP1CON1bits.SSPM = 0b1000; // i2c baud rate clock = Fosc/(4*(SSP1ADD+1))
-    // TODO set baud rate
+    // set baud rate: 9600
     SSP1ADD = 51; // baud rate: (SSP1ADD+1)*4/Fosc
     // enable interrupt on stop bit
-    //    SSP1CON3bits.PCIE = 0;
+    // SSP1CON3bits.PCIE = 0;
     // optionally set the sda hold time to at least 300ns after the falling edge of scl
     SSP1CON3bits.SDAHT = 1; // set SDA hold time to at least 300ns
     // disable the slew rate control
@@ -23,57 +40,170 @@ void init_iic(void) { // TODO determine if SSP1 correct
     SSP1CON1bits.SSPEN = 1;
 }
 
-void iic_ack(uint8_t ack) {
+int iic_ack(uint8_t ack) {      // 0 - acknowledged 1 - not acknowledged
     // load the ack data
     SSP1CON2bits.ACKDT = (ack & 0x01);
     // start ack
     SSP1CON2bits.ACKEN = 1;
-    // wait the data
-    while (PIR3bits.SSP1IF == 0);
-    // clear the interrupt status
-    PIR3bits.SSP1IF = 0;
+    return iic_wait();
 }
 
-void iic_write_byte(uint8_t data) {
-    // send the data
+int iic_write_byte(uint8_t addr, uint8_t data) {
+    // the register bit - BF is not used here
+    // start condition
+    if (iic_start() == 0) {
+#ifdef DEBUG
+        printf("iic_write_byte start failed!\n");
+#endif
+        return 0;
+    }
+
+    // send address
+    SSP1BUF = addr << 1;
+    if (iic_wait_ack() == 0 || iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_write_byte send address failed!\n");
+#endif
+        return 0;
+    }
+
+    // send data
     SSP1BUF = data;
-    // wait for completion
-    while (PIR3bits.SSP1IF == 0);
-    // clear the bit
-    PIR3bits.SSP1IF = 0;
+    if (iic_wait_ack() == 0 || iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_write_byte send data failed!\n");
+#endif
+        return 0;
+    }
+
+    // stop condition
+    if (iic_stop() == 0) {
+#ifdef DEBUG
+        printf("iic_write_byte stop failed!\n");
+#endif
+        return 0;
+    }
+
+    return 1;
 }
 
-uint8_t iic_read_byte(uint8_t ack) {
-    uint8_t data;
-    // enable receive
+int iic_read_byte(uint8_t addr, uint8_t *p_data) {
+    // start condition
+    if (iic_start() == 0) {
+#ifdef DEBUG
+        printf("iic_read_byte start failed!\n");
+#endif
+        return 0;
+    }
+
+    // send address and r/w
+    SSP1BUF = (addr << 1) + 1;
+    if (iic_wait_ack() == 0 || iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_read_byte send address failed!\n");
+#endif
+        return 0;
+    }
+
+    // receive
     SSP1CON2bits.RCEN = 1;
-    // wait for completion
-    while (PIR3bits.SSP1IF == 0);
-    // clear the bit
-    PIR3bits.SSP1IF = 0;
-    // read the data
-    data = SSP1BUF;
-    // clear the BUFFER FULL status
-    SSP1STATbits.BF = 0;
-    // send ack
-    iic_ack(ack);
-    return data;
+    if (iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_read_byte receive failed!\n");
+#endif
+        return 0;
+    }
+    *p_data = SSP1BUF;
+    if (iic_wait_buf() == 0) {
+#ifdef DEBUG
+        printf("iic_read_byte clear buf failed!\n");
+#endif
+        return 0;
+    }
+    
+    // ack
+    if (iic_ack(0) == 0) {
+#ifdef DEBUG
+        printf("iic_read_byte ack timed out!\n");
+#endif
+        return 0;        
+    }
+    
+    // stop
+    if (iic_stop() == 0) {
+#ifdef DEBUG
+        printf("iic_read_byte stop failed!\n");
+#endif
+        return 0;            
+    }
+
+    return 1;
 }
 
-void iic_start(void) {
+int iic_start(void) {
     // start condition enable
     SSP1CON2bits.SEN = 1;
-    // wait for transmission to complete
-    while (PIR3bits.SSP1IF == 0);
-    // clear the status
-    PIR3bits.SSP1IF = 0;
+    if (iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_start timed out!\n");
+#endif
+        return 0;
+    }
+    return 1;
 }
 
-void iic_stop(void) {
+int iic_stop(void) {
     // stop condition enable
     SSP1CON2bits.PEN = 1;
-    // wait for the transmission to stop
-    while (PIR3bits.SSP1IF == 0);
-    // clear the interrupt status
+    if (iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_stop timed out!\n");
+#endif
+        return 0;
+    }
+    return 1;
+}
+
+int iic_wait(void) {
+    uint32_t counter = 0;
+    while (PIR3bits.SSP1IF == 0) {
+        counter++;
+        if (counter >= IIC_TIMEOUT) {
+            PIR3bits.SSP1IF = 0;
+#ifdef DEBUG
+            printf("iic_wait timed out!\n");
+#endif
+            return 0; // wait failed
+        }
+    }
     PIR3bits.SSP1IF = 0;
+    return 1;
+}
+
+int iic_wait_ack(void) {
+    uint32_t counter = 0;
+    while (SSP1CON2bits.ACKSTAT == 1) {
+        counter++;
+        if (counter >= IIC_TIMEOUT) {
+#ifdef DEBUG
+            printf("iic_wait_ack timed out!\n");
+#endif
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int iic_wait_buf(void) {
+    uint32_t counter = 0;
+    while (SSP1STATbits.BF == 1) {
+        counter++;
+        if (counter >= IIC_TIMEOUT) {
+#ifdef DEBUG
+            printf("iic_wait_buf timed out!\n");
+#endif
+            return 0;
+        }
+    }
+    return 1;
 }

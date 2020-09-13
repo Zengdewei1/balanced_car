@@ -64,7 +64,9 @@ void main(void) {
     // motor1_run();
     while (1) {
         if (is_recvd) {
-            printf("%c\n", recvd_char);
+            char ch = recvd_char;
+            delay(300000);
+            printf("%c\n", ch);
             is_recvd = 0; // clear the flag
         }
     }

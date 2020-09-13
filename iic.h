@@ -8,11 +8,14 @@ extern "C" {
 #endif
 
     void init_iic(void);
-    void iic_ack(uint8_t ack);
-    void iic_write_byte(uint8_t data);
-    uint8_t iic_read_byte(uint8_t ack);
-    void iic_start(void);
-    void iic_stop(void);
+    int iic_ack(uint8_t ack);
+    int iic_write_byte(uint8_t addr, uint8_t data);
+    int iic_read_byte(uint8_t addr, uint8_t *p_data);
+    int iic_start(void);
+    int iic_stop(void);
+    int iic_wait(void);
+    int iic_wait_ack(void);
+    int iic_wait_buf(void);
 
 
 #ifdef	__cplusplus
