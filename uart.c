@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include "uart.h"
 
-void recv_handler(void) {
+inline void recv_handler(void) {
     PIE3bits.RCIE = 0; // disable the RX interrupt
+    if (is_recvd) { // don't overwrite the former value
+        return;
+    }
     is_recvd = 1;
     // handle overrun error
     if (RC1STAbits.OERR == 1) {

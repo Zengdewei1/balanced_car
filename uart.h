@@ -13,10 +13,10 @@
 extern "C" {
 #endif
 
-    char recvd_char = 0;
-    int is_recvd = 0; // you should manually clear it
+    char recvd_char;
+    int is_recvd; // you should manually clear it
 
-    void recv_handler(void);
+    inline void recv_handler(void);
     void init_eusart(void);
     void send_char(char data);
     void enable_out(void);

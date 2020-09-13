@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include "iic.h"
 
-#define DEBUG
 #define IIC_TIMEOUT 300000      // approximately 1 sec
 
 // The following events will cause the SSP Interrupt Flag 
@@ -28,8 +27,6 @@ void init_iic(void) {
     SSP1CON1bits.SSPM = 0b1000; // i2c baud rate clock = Fosc/(4*(SSP1ADD+1))
     // set baud rate: 9600
     SSP1ADD = 51; // baud rate: (SSP1ADD+1)*4/Fosc
-    // enable interrupt on stop bit
-    // SSP1CON3bits.PCIE = 0;
     // optionally set the sda hold time to at least 300ns after the falling edge of scl
     SSP1CON3bits.SDAHT = 1; // set SDA hold time to at least 300ns
     // disable the slew rate control
@@ -38,9 +35,10 @@ void init_iic(void) {
     SSP1STATbits.CKE = 1;
     // trigger up the ssp1
     SSP1CON1bits.SSPEN = 1;
+
 }
 
-int iic_ack(uint8_t ack) {      // 0 - acknowledged 1 - not acknowledged
+int iic_ack(uint8_t ack) { // 0 - acknowledged 1 - not acknowledged
     // load the ack data
     SSP1CON2bits.ACKDT = (ack & 0x01);
     // start ack
@@ -120,21 +118,21 @@ int iic_read_byte(uint8_t addr, uint8_t *p_data) {
 #endif
         return 0;
     }
-    
+
     // ack
     if (iic_ack(0) == 0) {
 #ifdef DEBUG
         printf("iic_read_byte ack timed out!\n");
 #endif
-        return 0;        
+        return 0;
     }
-    
+
     // stop
     if (iic_stop() == 0) {
 #ifdef DEBUG
         printf("iic_read_byte stop failed!\n");
 #endif
-        return 0;            
+        return 0;
     }
 
     return 1;
@@ -207,3 +205,68 @@ int iic_wait_buf(void) {
     }
     return 1;
 }
+
+//
+//void iic_slave_handler(void) {
+//    PIR3bits.SSP2IF = 0;
+//    if (SSP2STATbits.S) {
+////        SSP2CON3bits.SCIE = 0;
+//        if (iic_slave_wait() == 0) {
+//            printf("iic_slave_handler\n");
+//            SSP2CON3bits.SCIE = 1;
+//            return;
+//        }
+////        SSP2CON3bits.SCIE = 1;
+//    }
+//}
+//
+//int iic_slave_wait(void) {
+//    uint32_t counter = 0;
+//    while (PIR3bits.SSP2IF == 0) {
+//        counter++;
+//        if (counter >= IIC_TIMEOUT) {
+//            PIR3bits.SSP2IF = 0;
+//            printf("iic_slave_wait timed out!\n");
+//            return 0; // wait failed
+//        }
+//    }
+//    PIR3bits.SSP2IF = 0;
+//    return 1;
+//}
+//
+//int iic_slave_wait_buf(void) {
+//    uint32_t counter = 0;
+//    while (SSP2STATbits.BF == 1) {
+//        counter++;
+//        if (counter >= IIC_TIMEOUT) {
+//            printf("iic_slave_wait_buf timed out!\n");
+//            return 0;
+//        }
+//    }
+//    return 1;
+//}
+//
+//void init_iic_slave(void) {
+//    // rc2 (sda2)  rc1 (scl2)
+//    TRISCbits.TRISC1 = 1;
+//    TRISCbits.TRISC2 = 1;
+//    SSP2CLKPPS = 0x11;
+//    SSP2DATPPS = 0x12;
+//    RC1PPS = 0x16;
+//    RC2PPS = 0x17;
+//
+//    // set the ssp working mode as iic slave mode
+//    SSP2CON1bits.SSPM = 0b0110;
+//    // interrupts on start and stop
+//    SSP2CON3bits.PCIE = 1;
+//    SSP2CON3bits.SCIE = 1;
+//    // address
+//    SSP2ADD = 100 << 1;
+//    SSP2MSK = 0xff;
+//    // automatically holds the clk after the address and data
+//    SSP2CON3bits.AHEN = 1;
+//    SSP2CON3bits.DHEN = 1;
+//    // start up the peripheral
+//    SSP2CON1bits.SSPEN = 1;
+//
+//}

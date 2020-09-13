@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define DEBUG
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -16,7 +18,6 @@ extern "C" {
     int iic_wait(void);
     int iic_wait_ack(void);
     int iic_wait_buf(void);
-
 
 #ifdef	__cplusplus
 }

@@ -53,6 +53,9 @@ void __interrupt() irs_routine() {
 
 void main(void) {
     // initialization
+    recvd_char = 0;
+    is_recvd = 0;
+
     // init_oc();
     init_port();
     set_interrupt();
@@ -61,11 +64,9 @@ void main(void) {
     init_iic();
 
     // main loop
-    // motor1_run();
     while (1) {
-        if (is_recvd) {
+        if (is_recvd) { // check if reception
             char ch = recvd_char;
-            delay(300000);
             printf("%c\n", ch);
             is_recvd = 0; // clear the flag
         }
