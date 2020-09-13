@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "iic.h"
 
-#define IIC_TIMEOUT 300000      // approximately 1 sec
+#define IIC_TIMEOUT 600000      // approximately 2 sec
 
 // The following events will cause the SSP Interrupt Flag 
 // bit, SSPxIF, to be set (SSP interrupt, if enabled):
@@ -16,8 +16,13 @@ void init_iic(void) {
     // I2C programming guide
     // https://electronics.stackexchange.com/questions/417806/pic16f18877-using-i2c-to-read-sensor-lsm9ds0-value
     // set the rc3(scl) and rc4(sda) as input for iic master mode
+    ANSELCbits.ANSC3 = 0;
+    ANSELCbits.ANSC4 = 0;
     TRISCbits.TRISC3 = 1;
     TRISCbits.TRISC4 = 1;
+    WPUCbits.WPUC3 = 1;
+    WPUCbits.WPUC4 = 1;
+    // pps
     SSP1CLKPPS = 0x13; // rc3
     SSP1DATPPS = 0x14; // rc4
     RC3PPS = 0x14; // scl
@@ -25,17 +30,16 @@ void init_iic(void) {
 
     // set the ssp working mode as iic master mode
     SSP1CON1bits.SSPM = 0b1000; // i2c baud rate clock = Fosc/(4*(SSP1ADD+1))
-    // set baud rate: 9600
-    SSP1ADD = 51; // baud rate: (SSP1ADD+1)*4/Fosc
+    // set baud rate: 100 KHz
+    SSP1ADD = 19; // baud rate
     // optionally set the sda hold time to at least 300ns after the falling edge of scl
     SSP1CON3bits.SDAHT = 1; // set SDA hold time to at least 300ns
     // disable the slew rate control
-    SSP1STATbits.SMP = 1;
+    //    SSP1STATbits.SMP = 1;
     // enable input logic so that thresholds are compliant with SMBus
-    SSP1STATbits.CKE = 1;
+    //    SSP1STATbits.CKE = 1;
     // trigger up the ssp1
     SSP1CON1bits.SSPEN = 1;
-
 }
 
 int iic_ack(uint8_t ack) { // 0 - acknowledged 1 - not acknowledged
@@ -46,8 +50,8 @@ int iic_ack(uint8_t ack) { // 0 - acknowledged 1 - not acknowledged
     return iic_wait();
 }
 
-int iic_write_byte(uint8_t addr, uint8_t data) {
-    // the register bit - BF is not used here
+int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack) {
+    *n_ack = 1;
     // start condition
     if (iic_start() == 0) {
 #ifdef DEBUG
@@ -57,19 +61,33 @@ int iic_write_byte(uint8_t addr, uint8_t data) {
     }
 
     // send address
-    SSP1BUF = addr << 1;
-    if (iic_wait_ack() == 0 || iic_wait() == 0) {
+    SSP1BUF = (addr << 1);
+    if (iic_wait_buf() == 0) {
 #ifdef DEBUG
         printf("iic_write_byte send address failed!\n");
+#endif
+        return 0;
+    }
+    *n_ack = SSP1CON2bits.ACKSTAT;
+    if (*n_ack == 1 || iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_write_byte send address--2 failed!\n");
 #endif
         return 0;
     }
 
     // send data
     SSP1BUF = data;
-    if (iic_wait_ack() == 0 || iic_wait() == 0) {
+    if (iic_wait_buf() == 0) {
 #ifdef DEBUG
         printf("iic_write_byte send data failed!\n");
+#endif
+        return 0;
+    }
+    *n_ack = SSP1CON2bits.ACKSTAT;
+    if (*n_ack == 1 || iic_wait() == 0) {
+#ifdef DEBUG
+        printf("iic_write_byte send data--2 failed!\n");
 #endif
         return 0;
     }
@@ -85,7 +103,7 @@ int iic_write_byte(uint8_t addr, uint8_t data) {
     return 1;
 }
 
-int iic_read_byte(uint8_t addr, uint8_t *p_data) {
+int iic_read_byte(uint8_t addr, uint8_t *p_data) {  // TODO to be altered
     // start condition
     if (iic_start() == 0) {
 #ifdef DEBUG
@@ -193,6 +211,10 @@ int iic_wait_ack(void) {
 }
 
 int iic_wait_buf(void) {
+    if (SSP1STATbits.BF == 0) {
+        return 1;
+    }
+
     uint32_t counter = 0;
     while (SSP1STATbits.BF == 1) {
         counter++;

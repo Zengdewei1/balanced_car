@@ -11,7 +11,7 @@ extern "C" {
 
     void init_iic(void);
     int iic_ack(uint8_t ack);
-    int iic_write_byte(uint8_t addr, uint8_t data);
+    int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack);
     int iic_read_byte(uint8_t addr, uint8_t *p_data);
     int iic_start(void);
     int iic_stop(void);
