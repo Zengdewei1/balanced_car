@@ -37,7 +37,7 @@
 
 #include "uart.h"
 #include "iic.h"
-#include "bt.h"
+#include "mpu6050.h"
 
 void set_pps();
 void set_interrupt();
@@ -63,15 +63,24 @@ void main(void) {
     init_eusart();
     init_iic();
 
+    delay(600000);
+
+
     // main loop
     while (1) {
-        // iic read register
-        //        read_reg(MPU6050_DEFAULT_ADDRESS, , 1, reg_buf);
-        printf("\n\n\n");
+        char data = 1;
+        printf("[main] read addr 10: %d\n", iic_read_byte(10, &data));
+        printf("[main] data: %d\n\n", data);
 
         int nack;
-        printf("[main] write addr 0x68: %d\n", iic_write_byte(0b01010011, 0b10101100, &nack));
+        printf("[main] write addr 10: %d\n", iic_write_byte(10, 10, &nack));
         printf("[main] nack: %d\n\n", nack);
+
+        //        while (MPU_Init()) {
+        //            printf("MPU6050 Num:0 ID Error!\r\n");
+        //            delay_ms(10);
+        //            return;
+        //        }
 
         // echo code
         if (is_recvd) { // check if reception

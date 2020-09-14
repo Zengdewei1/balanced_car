@@ -91,7 +91,6 @@
 #define MPU_ADDR				0X68
 #define MPU_ADDR1               0x69
 
-
 ////因为模块AD0默认接GND,所以转为读写地址后,为0XD1和0XD0(如果接VCC,则为0XD3和0XD2)  
 //#define MPU_READ    0XD1
 //#define MPU_WRITE   0XD0

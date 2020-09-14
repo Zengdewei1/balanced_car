@@ -1,5 +1,5 @@
 #include "mpu6050.h"
-
+#include <stdio.h>
 //////////////////////////////////////////////////////////////////////////////////	 
 //本程序只供学习使用，未经作者许可，不得用于其它任何用途
 //ALIENTEK战舰STM32开发板V3
@@ -15,7 +15,7 @@
 
 //初始化MPU6050
 //返回值:0,成功
-//    其他,错误代码
+//    其他,错误代码=
 
 u8 MPU_Init() {
     u8 res;
@@ -37,6 +37,7 @@ u8 MPU_Init() {
     MPU_Write_Byte(MPU_FIFO_EN_REG, 0X00); //关闭FIFO
     MPU_Write_Byte(MPU_INTBP_CFG_REG, 0X80); //INT引脚低电平有效
     res = MPU_Read_Byte(MPU_DEVICE_ID_REG);
+    printf("res: %d\n", res);
     if (res == MPU_ADDR || res == MPU_ADDR1)//器件ID正确
     {
         MPU_Write_Byte(MPU_PWR_MGMT1_REG, 0X01); //设置CLKSEL,PLL X轴为参考

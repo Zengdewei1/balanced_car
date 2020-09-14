@@ -20,6 +20,7 @@
 //IO方向设置
 #define MPU_SDA_IN()    TRISCbits.TRISC4 = 1;
 #define MPU_SDA_OUT()   TRISCbits.TRISC4 = 0;
+#define MPU_SCL_OUT()   TRISCbits.TRISC3 = 0;
 
 //IO操作函数	 
 #define MPU_IIC_SCL    LATCbits.LATC3 		//SCL
@@ -31,8 +32,8 @@ typedef uint16_t u16;
 typedef uint8_t u8;
 
 //IIC所有操作函数
-u8 MPU_IIC_Delay(void); //MPU IIC延时函数
-void MPU_IIC_Init(void); //初始化IIC的IO口				 
+u8 MPU_IIC_Delay(); //MPU IIC延时函数
+void MPU_IIC_Init(); //初始化IIC的IO口				 
 void MPU_IIC_Start(); //发送IIC开始信号
 void MPU_IIC_Stop(); //发送IIC停止信号
 void MPU_IIC_Send_Byte(u8 txd); //IIC发送一个字节

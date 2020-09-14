@@ -24,6 +24,17 @@ u8 MPU_IIC_Delay(void) {
 //初始化IIC
 
 void MPU_IIC_Init(void) {
+    // port
+    MPU_SCL_OUT();
+    MPU_SDA_OUT();
+    ANSELCbits.ANSC3 = 0;
+    ANSELCbits.ANSC4 = 0;
+    WPUCbits.WPUC3 = 1;
+    WPUCbits.WPUC4 = 1;
+    
+    // init port
+    MPU_IIC_SDA = 0;
+    MPU_IIC_SCL = 1;
 }
 //产生IIC起始信号
 
