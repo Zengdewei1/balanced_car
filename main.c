@@ -64,25 +64,15 @@ void main(void) {
     init_iic();
 
     // main loop
-    printf("\n\n\n");
-    int nack;
-    printf("[main] write addr 0x68: %d\n", iic_write_byte(0x68, 0x6b, &nack));
-    printf("[main] nack: %d\n\n", nack);
-
-    printf("[main] write addr 0x69: %d\n", iic_write_byte(0x69, 0x6b, &nack));
-    printf("[main] nack: %d\n\n", nack);
-
-    printf("[main] write addr 0x70: %d\n", iic_write_byte(0x70, 0x6b, &nack));
-    printf("[main] nack: %d\n\n", nack);
-
-    char ch = 0;
-    printf("[main] read reg 0x68: %d\n", iic_read_byte(0x68, &ch));
-    printf("[main] result: %d\n\n", ch);
-
     while (1) {
         // iic read register
         //        read_reg(MPU6050_DEFAULT_ADDRESS, , 1, reg_buf);
-
+        printf("\n\n\n");
+        
+        int nack;
+        printf("[main] write addr 0x68: %d\n", iic_write_byte(0b01010011, 0b10101100, &nack));
+        printf("[main] nack: %d\n\n", nack);
+        
         // echo code
         if (is_recvd) { // check if reception
             char ch = recvd_char;

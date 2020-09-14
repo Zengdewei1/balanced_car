@@ -2,15 +2,16 @@
 #include <stdio.h>
 #include "iic.h"
 
-#define IIC_TIMEOUT 600000      // approximately 2 sec
+//#define IIC_TIMEOUT 300000      // approximately 1 sec
+#define IIC_TIMEOUT 300000      // approximately 1 sec
 
 // The following events will cause the SSP Interrupt Flag 
 // bit, SSPxIF, to be set (SSP interrupt, if enabled):
-//?Start condition detected
-//?Stop condition detected
-//?Data transfer byte transmitted/received
-//?Acknowledge transmitted/received
-//?Repeated Start generated
+// - Start condition detected
+// - Stop condition detectedaddress
+// - Data transfer byte transmitted/received
+// - Acknowledge transmitted/received
+// - Repeated Start generated
 
 void init_iic(void) {
     // I2C programming guide
@@ -62,34 +63,32 @@ int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack) {
 
     // send address
     SSP1BUF = (addr << 1);
-    if (iic_wait_buf() == 0) {
+    if (iic_wait() == 0) {
 #ifdef DEBUG
         printf("iic_write_byte send address failed!\n");
 #endif
         return 0;
     }
     *n_ack = SSP1CON2bits.ACKSTAT;
-    if (*n_ack == 1 || iic_wait() == 0) {
+    if (*n_ack == 1) {  // TODO
 #ifdef DEBUG
-        printf("iic_write_byte send address--2 failed!\n");
+//        printf("iic_write_byte send address not recognized!\n");
 #endif
-        return 0;
     }
 
     // send data
     SSP1BUF = data;
-    if (iic_wait_buf() == 0) {
+    if (iic_wait() == 0) {
 #ifdef DEBUG
         printf("iic_write_byte send data failed!\n");
 #endif
         return 0;
     }
     *n_ack = SSP1CON2bits.ACKSTAT;
-    if (*n_ack == 1 || iic_wait() == 0) {
+    if (*n_ack == 1) {  // TODO 
 #ifdef DEBUG
-        printf("iic_write_byte send data--2 failed!\n");
+//        printf("iic_write_byte send data not recognized!\n");
 #endif
-        return 0;
     }
 
     // stop condition
@@ -103,7 +102,7 @@ int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack) {
     return 1;
 }
 
-int iic_read_byte(uint8_t addr, uint8_t *p_data) {  // TODO to be altered
+int iic_read_byte(uint8_t addr, uint8_t *p_data) { // TODO to be altered
     // start condition
     if (iic_start() == 0) {
 #ifdef DEBUG
@@ -211,10 +210,6 @@ int iic_wait_ack(void) {
 }
 
 int iic_wait_buf(void) {
-    if (SSP1STATbits.BF == 0) {
-        return 1;
-    }
-
     uint32_t counter = 0;
     while (SSP1STATbits.BF == 1) {
         counter++;
@@ -227,6 +222,11 @@ int iic_wait_buf(void) {
     }
     return 1;
 }
+
+
+
+
+
 
 //
 //void iic_slave_handler(void) {
