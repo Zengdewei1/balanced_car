@@ -1,6 +1,8 @@
 #ifndef __MPU6050_H
 #define __MPU6050_H
-#include "mpuiic.h"   												  	  
+
+#define OWN_IMP
+#include <stdint.h>
 //////////////////////////////////////////////////////////////////////////////////	 
 //本程序只供学习使用，未经作者许可，不得用于其它任何用途
 //ALIENTEK战舰STM32开发板V3
@@ -13,6 +15,10 @@
 //Copyright(C) 广州市星翼电子科技有限公司 2009-2019
 //All rights reserved									  
 ////////////////////////////////////////////////////////////////////////////////// 
+
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t u8;
 
 //MPU6050 AD0控制脚
 #define MPU_AD0_CTRL			PAout(15)	//控制AD0电平,从而控制MPU地址

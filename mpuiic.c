@@ -16,7 +16,7 @@
 
 u8 MPU_IIC_Delay(void) {
     unsigned char i = 0;
-    while (i < 20) {
+    while (i < 40) {
         i++;
     }
     return i;

@@ -38,6 +38,7 @@
 #include "uart.h"
 #include "iic.h"
 #include "mpu6050.h"
+#include "mpuiic.h"
 
 void set_pps();
 void set_interrupt();
@@ -61,26 +62,30 @@ void main(void) {
     set_interrupt();
     set_pps();
     init_eusart();
+#ifdef OWN_IMP
     init_iic();
+#else
+    MPU_IIC_Init();
+#endif
 
+    // wait for 1 sec
     delay(600000);
-
 
     // main loop
     while (1) {
-        char data = 1;
-        printf("[main] read addr 10: %d\n", iic_read_byte(10, &data));
-        printf("[main] data: %d\n\n", data);
+//        int nack;
+//        printf("[main] write: %d\n", iic_write_byte(0x68, 0x10, &nack));
+//        printf("[main] nack : %d\n\n", nack);
+//
+//        char data = 1;
+//        printf("[main] read : %d\n", iic_read_byte(0x68, &data));
+//        printf("[main] data : %d\n\n", data);
 
-        int nack;
-        printf("[main] write addr 10: %d\n", iic_write_byte(10, 10, &nack));
-        printf("[main] nack: %d\n\n", nack);
-
-        //        while (MPU_Init()) {
-        //            printf("MPU6050 Num:0 ID Error!\r\n");
-        //            delay_ms(10);
-        //            return;
-        //        }
+        while (MPU_Init()) {
+            printf("MPU6050 Num:0 ID Error!\r\n");
+            delay_ms(10);
+            return;
+        }
 
         // echo code
         if (is_recvd) { // check if reception
@@ -89,8 +94,6 @@ void main(void) {
             is_recvd = 0; // clear the flag
         }
     }
-
-    return;
 }
 
 void init_port() {

@@ -10,14 +10,13 @@ extern "C" {
 #endif
 
     void init_iic(void);
-    int iic_ack(uint8_t ack);
     int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack);
     int iic_read_byte(uint8_t addr, uint8_t *p_data);
-    int iic_start(void);
-    int iic_stop(void);
-    int iic_wait(void);
-    int iic_wait_ack(void);
-    int iic_wait_buf(void);
+    int mpu_write_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len, int *n_ack);
+    int mpu_write_byte(uint8_t addr, uint8_t reg, uint8_t data, int *n_ack);
+    int mpu_read_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len);
+    int mpu_write_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len, int *n_ack);
+
 
 #ifdef	__cplusplus
 }

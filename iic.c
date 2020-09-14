@@ -12,8 +12,15 @@
 // - Data transfer byte transmitted/received
 // - Acknowledge transmitted/received
 // - Repeated Start generated
-inline int _iic_send_and_get_ack(uint8_t data, int *nack);
-inline int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack);
+
+int _iic_start(void);
+int _iic_stop(void);
+int _iic_wait(void);
+int _iic_wait_ack(void);
+int _iic_wait_buf(void);
+int _iic_ack(uint8_t ack);
+int _iic_send_and_get_ack(uint8_t data, int *nack);
+int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack);
 
 void init_iic(void) {
     // I2C programming guide
@@ -41,74 +48,139 @@ void init_iic(void) {
     SSP1CON1bits.SSPEN = 1;
 }
 
-int iic_ack(uint8_t ack) { // 0 - acknowledged 1 - not acknowledged
+int _iic_ack(uint8_t ack) { // 0 - acknowledged 1 - not acknowledged
     // load the ack data
     SSP1CON2bits.ACKDT = (ack & 0x01);
     // start ack
     SSP1CON2bits.ACKEN = 1;
-    return iic_wait();
+    return _iic_wait();
 }
 
-inline int _iic_send_and_get_ack(uint8_t data, int *nack) {
+int _iic_send_and_get_ack(uint8_t data, int *nack) {
     // send address
     SSP1BUF = data;
-    if (iic_wait() == 0) return 0;
+    if (_iic_wait() == 0) return 0;
     *nack = SSP1CON2bits.ACKSTAT;
     if (*nack == 1) return 0;
     return 1;
 }
 
-inline int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack) {
+int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack) {
     SSP1CON2bits.RCEN = 1;
-    if (iic_wait_buf() == 0) return 0;
+    if (_iic_wait_buf() == 0) return 0;
     PIR3bits.SSP1IF = 0;
     *p_data = SSP1BUF;
     // ack
-    if (iic_ack(nack) == 0) return 0;
+    if (_iic_ack(nack) == 0) return 0;
     return 1;
 }
 
 int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack) {
     *n_ack = 1;
     // start condition
-    if (iic_start() == 0) return 2;
-
+    if (_iic_start() != 1) return 2;
     // send address
-    if (_iic_send_and_get_ack((addr << 1) | 0, n_ack) == 0) return 3;
-
+    if (_iic_send_and_get_ack((addr << 1) | 0, n_ack) != 1) return 3;
     // send data
-    if (_iic_send_and_get_ack(data, n_ack) == 0) return 4;
-
+    if (_iic_send_and_get_ack(data, n_ack) != 1) return 4;
     // stop condition
-    if (iic_stop() == 0) return 5;
+    if (_iic_stop() != 1) return 5;
     return 1;
 }
 
-int iic_write_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len) {
+int mpu_write_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len, int *n_ack) {
+    // start
+    if (_iic_start() != 1) return 2;
+    // send address
+    if (_iic_send_and_get_ack((addr << 1) | 0, n_ack) != 1) return 3;
+    // send reg address
+    if (_iic_send_and_get_ack(reg, n_ack) != 1) return 4;
+    // send buffer
+    for (int i = 0; i < len; i++) {
+        if (_iic_send_and_get_ack(buf[i], n_ack) != 1) return 5 + i;
+    }
+    // stop
+    if (_iic_stop() != 1) return -1;
     return 1;
 }
 
-int iic_read_byte(uint8_t addr, uint8_t *p_data) { // TODO to be altered
+int mpu_write_byte(uint8_t addr, uint8_t reg, uint8_t data, int *n_ack) {
+    // start
+    if (_iic_start() != 1) return 2;
+    // send address
+    if (_iic_send_and_get_ack((addr << 1) | 0, n_ack) != 1) return 3;
+    // send reg addr
+    if (_iic_send_and_get_ack(reg, n_ack) != 1) return 4;
+    // send data
+    if (_iic_send_and_get_ack(data, n_ack) != 1) return 5;
+    // stop
+    if (_iic_stop() != 1) return 6;
+    return 1;
+}
+
+int iic_read_byte(uint8_t addr, uint8_t *p_data) {
     int n_ack = 1;
     // start condition
-    if (iic_start() == 0) return 2;
-
+    if (_iic_start() != 1) return 2;
     // send address and r/w
-    if (_iic_send_and_get_ack((addr << 1) | 1, &n_ack) == 0) return 3;
-
+    if (_iic_send_and_get_ack((addr << 1) | 1, &n_ack) != 1) return 3;
     // receive
-    if (_iic_receive_and_send_ack(p_data, 0) == 0) return 4;
-
+    if (_iic_receive_and_send_ack(p_data, 0) != 1) return 4;
     // stop
-    if (iic_stop() == 0) return 5;
-
+    if (_iic_stop() != 1) return 5;
     return 1;
 }
 
-int iic_start(void) {
+int mpu_read_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len) {
+    int n_ack = 1;
+    // start condition
+    if (_iic_start() != 1) return 2;
+    // send address
+    if (_iic_send_and_get_ack((addr << 1) | 0, &n_ack) != 1) return 3;
+    // send reg addr
+    if (_iic_send_and_get_ack(reg, &n_ack) != 1) return 4;
+    // restart
+    if (_iic_start() != 1) return 5;
+    // send address
+    if (_iic_send_and_get_ack((addr << 1) | 1, &n_ack) != 1) return 6;
+    // receive the data
+    while (len) {
+        if (len == 1) {
+            _iic_receive_and_send_ack(buf, 1);
+        } else {
+            _iic_receive_and_send_ack(buf, 0);
+        }
+        len--;
+        buf++;
+    }
+    // stop condition
+    if (_iic_stop() != 1) return 7;
+    return 1;
+}
+
+int mpu_read_byte(uint8_t addr, uint8_t reg, uint8_t *p_data) {
+    int n_ack = 1;
+    // start condition
+    if (_iic_start() != 1) return 2;
+    // send address
+    if (_iic_send_and_get_ack((addr << 1) | 0, &n_ack) != 1) return 3;
+    // send reg addr
+    if (_iic_send_and_get_ack(reg, &n_ack) != 1) return 4;
+    // restart
+    if (_iic_start() != 1) return 5;
+    // send address
+    if (_iic_send_and_get_ack((addr << 1) | 1, &n_ack) != 1) return 6;
+    // read data
+    if (_iic_receive_and_send_ack(p_data, 1) != 1) return 7;
+    // stop condition
+    if (_iic_stop() != 1) return 7;
+    return 1;
+}
+
+int _iic_start(void) {
     // start condition enable
     SSP1CON2bits.SEN = 1;
-    if (iic_wait() == 0) {
+    if (_iic_wait() == 0) {
 #ifdef DEBUG
         printf("iic_start timed out!\n");
 #endif
@@ -117,10 +189,10 @@ int iic_start(void) {
     return 1;
 }
 
-int iic_stop(void) {
+int _iic_stop(void) {
     // stop condition enable
     SSP1CON2bits.PEN = 1;
-    if (iic_wait() == 0) {
+    if (_iic_wait() == 0) {
 #ifdef DEBUG
         printf("iic_stop timed out!\n");
 #endif
@@ -129,7 +201,7 @@ int iic_stop(void) {
     return 1;
 }
 
-int iic_wait(void) {
+int _iic_wait(void) {
     uint32_t counter = 0;
     while (PIR3bits.SSP1IF == 0) {
         counter++;
@@ -145,7 +217,7 @@ int iic_wait(void) {
     return 1;
 }
 
-int iic_wait_ack(void) {
+int _iic_wait_ack(void) {
     uint32_t counter = 0;
     while (SSP1CON2bits.ACKSTAT == 1) {
         counter++;
@@ -159,7 +231,7 @@ int iic_wait_ack(void) {
     return 1;
 }
 
-int iic_wait_buf(void) {
+int _iic_wait_buf(void) {
     uint32_t counter = 0;
     while (SSP1STATbits.BF == 1) {
         counter++;
@@ -172,10 +244,6 @@ int iic_wait_buf(void) {
     }
     return 1;
 }
-
-
-
-
 
 
 //

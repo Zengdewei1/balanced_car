@@ -1,5 +1,7 @@
 #include "mpu6050.h"
+#include "iic.h"
 #include <stdio.h>
+#include "mpuiic.h"
 //////////////////////////////////////////////////////////////////////////////////	 
 //本程序只供学习使用，未经作者许可，不得用于其它任何用途
 //ALIENTEK战舰STM32开发板V3
@@ -25,7 +27,10 @@ u8 MPU_Init() {
     //	JTAG_Set(SWD_ENABLE);	//禁止JTAG,从而PA15可以做普通IO使用,否则PA15不能做普通IO!!!
     //	MPU_AD0_CTRL=0;			//控制MPU6050的AD0脚为低电平,从机地址为:0X68
 
+#ifndef OWN_IMP
     MPU_IIC_Init(); //初始化IIC总线
+#endif
+
     MPU_Write_Byte(MPU_PWR_MGMT1_REG, 0X80); //复位MPU6050
     delay_ms(100);
     MPU_Write_Byte(MPU_PWR_MGMT1_REG, 0X00); //唤醒MPU6050 
@@ -164,6 +169,10 @@ u8 MPU_Get_Accelerometer(short *ax, short *ay, short *az) {
 //    其他,错误代码
 
 u8 MPU_Write_Len(u8 addr, u8 reg, u8 len, u8 *buf) {
+#ifdef OWN_IMP
+    int n_ack;
+    mpu_write_len(addr, reg, buf, len, &n_ack);
+#else
     u8 i;
     MPU_IIC_Start();
     MPU_IIC_Send_Byte((addr << 1) | 0); //发送器件地址+写命令	
@@ -183,6 +192,7 @@ u8 MPU_Write_Len(u8 addr, u8 reg, u8 len, u8 *buf) {
         }
     }
     MPU_IIC_Stop();
+#endif
     return 0;
 }
 //IIC连续读
@@ -194,6 +204,9 @@ u8 MPU_Write_Len(u8 addr, u8 reg, u8 len, u8 *buf) {
 //    其他,错误代码
 
 u8 MPU_Read_Len(u8 addr, u8 reg, u8 len, u8 *buf) {
+#ifdef OWN_IMP
+    mpu_read_len(addr, reg, buf, len);
+#else
     MPU_IIC_Start();
     MPU_IIC_Send_Byte((addr << 1) | 0); //发送器件地址+写命令	
     if (MPU_IIC_Wait_Ack()) //等待应答
@@ -215,6 +228,7 @@ u8 MPU_Read_Len(u8 addr, u8 reg, u8 len, u8 *buf) {
         buf++;
     }
     MPU_IIC_Stop(); //产生一个停止条件 
+#endif
     return 0;
 }
 //IIC写一个字节 
@@ -224,6 +238,10 @@ u8 MPU_Read_Len(u8 addr, u8 reg, u8 len, u8 *buf) {
 //    其他,错误代码
 
 u8 MPU_Write_Byte(u8 reg, u8 data) {
+#ifdef OWN_IMP
+    int n_ack;
+    mpu_write_byte(MPU_ADDR, reg, data, &n_ack);
+#else
     MPU_IIC_Start();
     MPU_IIC_Send_Byte((MPU_ADDR << 1) | 0); //发送器件地址+写命令	    
     if (MPU_IIC_Wait_Ack()) //等待应答
@@ -240,6 +258,7 @@ u8 MPU_Write_Byte(u8 reg, u8 data) {
         return 1;
     }
     MPU_IIC_Stop();
+#endif
     return 0;
 }
 //IIC读一个字节 
@@ -247,6 +266,10 @@ u8 MPU_Write_Byte(u8 reg, u8 data) {
 //返回值:读到的数据
 
 u8 MPU_Read_Byte(u8 reg) {
+#ifdef OWN_IMP
+    u8 res = 255;
+    mpu_read_byte(MPU_ADDR, reg, &res);
+#else
     u8 res;
     MPU_IIC_Start();
     MPU_IIC_Send_Byte((MPU_ADDR << 1) | 0); //发送器件地址+写命令	    
@@ -260,9 +283,9 @@ u8 MPU_Read_Byte(u8 reg) {
     MPU_IIC_Wait_Ack(); //等待应答 
     res = MPU_IIC_Read_Byte(0); //读取数据,发送nACK 
     MPU_IIC_Stop(); //产生一个停止条件 
+#endif
     return res;
 }
-
 
 void delay_ms(unsigned int xms) {
     int i, j;
