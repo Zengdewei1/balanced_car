@@ -70,9 +70,9 @@ int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack) {
         return 0;
     }
     *n_ack = SSP1CON2bits.ACKSTAT;
-    if (*n_ack == 1) {  // TODO
+    if (*n_ack == 1) { // TODO
 #ifdef DEBUG
-//        printf("iic_write_byte send address not recognized!\n");
+        //        printf("iic_write_byte send address not recognized!\n");
 #endif
     }
 
@@ -85,9 +85,9 @@ int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack) {
         return 0;
     }
     *n_ack = SSP1CON2bits.ACKSTAT;
-    if (*n_ack == 1) {  // TODO 
+    if (*n_ack == 1) { // TODO 
 #ifdef DEBUG
-//        printf("iic_write_byte send data not recognized!\n");
+        //        printf("iic_write_byte send data not recognized!\n");
 #endif
     }
 

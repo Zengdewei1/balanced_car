@@ -5,5 +5,5 @@
 #include <stdio.h>
 
 void init_pwm(void) {
-    
+
 }

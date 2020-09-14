@@ -68,11 +68,11 @@ void main(void) {
         // iic read register
         //        read_reg(MPU6050_DEFAULT_ADDRESS, , 1, reg_buf);
         printf("\n\n\n");
-        
+
         int nack;
         printf("[main] write addr 0x68: %d\n", iic_write_byte(0b01010011, 0b10101100, &nack));
         printf("[main] nack: %d\n\n", nack);
-        
+
         // echo code
         if (is_recvd) { // check if reception
             char ch = recvd_char;
