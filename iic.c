@@ -12,6 +12,8 @@
 // - Data transfer byte transmitted/received
 // - Acknowledge transmitted/received
 // - Repeated Start generated
+inline int _iic_send_and_get_ack(uint8_t data, int *nack);
+inline int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack);
 
 void init_iic(void) {
     // I2C programming guide
@@ -35,10 +37,6 @@ void init_iic(void) {
     SSP1ADD = 19; // baud rate
     // optionally set the sda hold time to at least 300ns after the falling edge of scl
     SSP1CON3bits.SDAHT = 1; // set SDA hold time to at least 300ns
-    // disable the slew rate control
-    //    SSP1STATbits.SMP = 1;
-    // enable input logic so that thresholds are compliant with SMBus
-    //    SSP1STATbits.CKE = 1;
     // trigger up the ssp1
     SSP1CON1bits.SSPEN = 1;
 }
@@ -51,54 +49,58 @@ int iic_ack(uint8_t ack) { // 0 - acknowledged 1 - not acknowledged
     return iic_wait();
 }
 
+inline int _iic_send_and_get_ack(uint8_t data, int *nack) {
+    // send address
+    SSP1BUF = data;
+    if (iic_wait() == 0) return 0;
+    *nack = SSP1CON2bits.ACKSTAT;
+    if (*nack == 1) return 0;
+    return 1;
+}
+
+inline int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack) {
+    SSP1CON2bits.RCEN = 1;
+    if (iic_wait_buf() == 0) return 0;
+    PIR3bits.SSP1IF = 0;
+    *p_data = SSP1BUF;
+    // ack
+    if (iic_ack(nack) == 0) return 0;
+    return 1;
+}
+
 int iic_write_byte(uint8_t addr, uint8_t data, int *n_ack) {
     *n_ack = 1;
     // start condition
     if (iic_start() == 0) return 2;
 
     // send address
-    SSP1BUF = (addr << 1) | 0;
-    if (iic_wait() == 0) return 3;
-    *n_ack = SSP1CON2bits.ACKSTAT;
-    if (*n_ack == 1) return 4;
+    if (_iic_send_and_get_ack((addr << 1) | 0, n_ack) == 0) return 3;
 
     // send data
-    SSP1BUF = data;
-    if (iic_wait() == 0) return 5;
-    *n_ack = SSP1CON2bits.ACKSTAT;
-    if (*n_ack == 1) return 6;
+    if (_iic_send_and_get_ack(data, n_ack) == 0) return 4;
 
     // stop condition
-    if (iic_stop() == 0) return 7;
+    if (iic_stop() == 0) return 5;
     return 1;
 }
 
-int iic_write_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len) { 
+int iic_write_len(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len) {
     return 1;
 }
 
 int iic_read_byte(uint8_t addr, uint8_t *p_data) { // TODO to be altered
+    int n_ack = 1;
     // start condition
     if (iic_start() == 0) return 2;
 
     // send address and r/w
-    int n_ack = 1;
-    SSP1BUF = (addr << 1) | 1;
-    if (iic_wait() == 0) return 3;
-    n_ack = SSP1CON2bits.ACKSTAT;
-    if (n_ack == 1) return 4;
+    if (_iic_send_and_get_ack((addr << 1) | 1, &n_ack) == 0) return 3;
 
     // receive
-    SSP1CON2bits.RCEN = 1;
-    if (iic_wait_buf() == 0) return 5;
-    PIR3bits.SSP1IF = 0;
-    *p_data = SSP1BUF;
-
-    // ack
-    if (iic_ack(0) == 0) return 6;
+    if (_iic_receive_and_send_ack(p_data, 0) == 0) return 4;
 
     // stop
-    if (iic_stop() == 0) return 7;
+    if (iic_stop() == 0) return 5;
 
     return 1;
 }
