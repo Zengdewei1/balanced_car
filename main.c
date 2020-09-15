@@ -45,6 +45,8 @@ void set_interrupt();
 void init_port();
 void delay(uint32_t delay_time);
 void motor1_run(void);
+void motor2_run(void);
+void motor_stop(void);
 
 void __interrupt() irs_routine() {
     if (PIR3bits.RCIF) { // don't call any print function here
@@ -81,15 +83,24 @@ void main(void) {
 //        printf("[main] read : %d\n", iic_read_byte(9, &data));
 //        printf("[main] data : %d\n\n", data);
 //
-        while (MPU_Init()) {
-            printf("MPU6050 Num:0 ID Error!\r\n");
-            delay_ms(10);
-            return;
-        }
+//        while (MPU_Init()) {
+//            printf("MPU6050 Num:0 ID Error!\r\n");
+//            delay_ms(10);
+//            return;
+//        }
 
         // echo code
         if (is_recvd) { // check if reception
             char ch = recvd_char;
+            if(ch == 'w'){
+                motor1_run();
+            }
+            if(ch == 's'){
+                motor2_run();
+            }
+            if(ch == 'p'){
+                motor_stop();
+            }
             printf("%c\n", ch);
             is_recvd = 0; // clear the flag
         }
@@ -148,6 +159,26 @@ void delay(uint32_t delay_time) {
 
 void motor1_run(void) {
     LATAbits.LATA5 = 1;
+    LATAbits.LATA6 = 1;
+    
+    LATAbits.LATA7 = 0;
+    LATCbits.LATC1 = 0;
+}
+
+void motor2_run(void) {
+    LATAbits.LATA5 = 0;
+    LATAbits.LATA6 = 0;
+    
+    LATAbits.LATA7 = 1;
+    LATCbits.LATC1 = 1;
+}
+
+void motor_stop(void) {
+    LATAbits.LATA5 = 0;
+    LATAbits.LATA6 = 0;
+    
+    LATAbits.LATA7 = 0;
+    LATCbits.LATC1 = 0;
 }
 
 //void out_reset() {
