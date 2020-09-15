@@ -38,6 +38,7 @@
 #include "uart.h"
 #include "iic.h"
 #include "bt.h"
+#include "pwm.h"
 
 void set_pps();
 void set_interrupt();
@@ -62,6 +63,7 @@ void main(void) {
     set_pps();
     init_eusart();
     init_iic();
+    init_pwm();
 
     // main loop
     while (1) {
@@ -79,20 +81,25 @@ void init_port() {
     // motor1
     // RA5 out
     TRISAbits.TRISA5 = 0;
+    ANSELAbits.ANSA5 = 0;
     // RA7 out
     TRISAbits.TRISA7 = 0;
-
+    ANSELAbits.ANSA7 = 0;
+    
     //motor2
     // RC1 out
     TRISAbits.TRISA6 = 0;
+    ANSELAbits.ANSA6 = 0;
     // RC2 out
     TRISCbits.TRISC1 = 0;
+    ANSELCbits.ANSC1 = 0;
 
-    //motor1
-    TRISAbits.TRISA0 = 1;
-    TRISAbits.TRISA1 = 1;
-    TRISAbits.TRISA2 = 1;
-    TRISAbits.TRISA3 = 1;
+    // RA7 out
+    LATAbits.LATA7 = 1;
+
+    //motor2
+    // RC1 out
+    LATAbits.LATA6 = 1;
 }
 
 void init_accelerometer(void) {
@@ -116,6 +123,18 @@ void set_pps() {
     RC6PPS = 0x10;
     // eusart in:  RX->RC5
     RXPPS = 0x15;
+
+    // motor1
+    // RA5 out
+    RA5PPS = 0x0D;
+    // RA7 out
+    LATAbits.LATA7 = 1;
+
+    //motor2
+    // RC1 out
+    LATAbits.LATA6 = 1;
+    // RC2 out
+    RC1PPS = 0x0C;
 }
 
 void delay(uint32_t delay_time) {
