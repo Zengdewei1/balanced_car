@@ -25,7 +25,7 @@ int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack);
 void init_iic(void) {
     // I2C programming guide
     // https://electronics.stackexchange.com/questions/417806/pic16f18877-using-i2c-to-read-sensor-lsm9ds0-value
-    // set the rc3(scl) and rc4(sda) as input for iic master mode
+    // set the rc3(scl2) and rc4(sda2) as input for iic master mode
     ANSELCbits.ANSC3 = 0;
     ANSELCbits.ANSC4 = 0;
     TRISCbits.TRISC3 = 1;
@@ -33,43 +33,46 @@ void init_iic(void) {
     WPUCbits.WPUC3 = 1;
     WPUCbits.WPUC4 = 1;
     // pps
-    SSP1CLKPPS = 0x13; // rc3
-    SSP1DATPPS = 0x14; // rc4
-    RC3PPS = 0x14; // scl
-    RC4PPS = 0x15; // sda
+    SSP2CLKPPS = 0x13; // rc3
+    SSP2DATPPS = 0x14; // rc4
+    RC3PPS = 0x16; // scl2
+    RC4PPS = 0x17; // sda2
 
     // set the ssp working mode as iic master mode
-    SSP1CON1bits.SSPM = 0b1000; // i2c baud rate clock = Fosc/(4*(SSP1ADD+1))
+    SSP2CON1bits.SSPM = 0b1000; // i2c baud rate clock = Fosc/(4*(SSP2ADD+1))
     // set baud rate: 100 KHz
-    SSP1ADD = 19; // baud rate
+    SSP2ADD = 19; // baud rate
     // optionally set the sda hold time to at least 300ns after the falling edge of scl
-    SSP1CON3bits.SDAHT = 1; // set SDA hold time to at least 300ns
+    SSP2CON3bits.SDAHT = 1; // set SDA hold time to at least 300ns
     // trigger up the ssp1
-    SSP1CON1bits.SSPEN = 1;
+    SSP2CON1bits.SSPEN = 1;
 }
 
 int _iic_ack(uint8_t ack) { // 0 - acknowledged 1 - not acknowledged
     // load the ack data
-    SSP1CON2bits.ACKDT = (ack & 0x01);
+    SSP2CON2bits.ACKDT = (ack & 0x01);
     // start ack
-    SSP1CON2bits.ACKEN = 1;
+    SSP2CON2bits.ACKEN = 1;
     return _iic_wait();
 }
 
 int _iic_send_and_get_ack(uint8_t data, int *nack) {
     // send address
-    SSP1BUF = data;
+    SSP2BUF = data;
     if (_iic_wait() == 0) return 0;
-    *nack = SSP1CON2bits.ACKSTAT;
-    if (*nack == 1) return 0;
+    *nack = SSP2CON2bits.ACKSTAT;
+    if (*nack == 1) {
+        _iic_stop();
+        return 0;
+    }
     return 1;
 }
 
 int _iic_receive_and_send_ack(uint8_t *p_data, uint8_t nack) {
-    SSP1CON2bits.RCEN = 1;
+    SSP2CON2bits.RCEN = 1;
     if (_iic_wait_buf() == 0) return 0;
-    PIR3bits.SSP1IF = 0;
-    *p_data = SSP1BUF;
+    PIR3bits.SSP2IF = 0;
+    *p_data = SSP2BUF;
     // ack
     if (_iic_ack(nack) == 0) return 0;
     return 1;
@@ -179,7 +182,7 @@ int mpu_read_byte(uint8_t addr, uint8_t reg, uint8_t *p_data) {
 
 int _iic_start(void) {
     // start condition enable
-    SSP1CON2bits.SEN = 1;
+    SSP2CON2bits.SEN = 1;
     if (_iic_wait() == 0) {
 #ifdef DEBUG
         printf("iic_start timed out!\n");
@@ -191,7 +194,7 @@ int _iic_start(void) {
 
 int _iic_stop(void) {
     // stop condition enable
-    SSP1CON2bits.PEN = 1;
+    SSP2CON2bits.PEN = 1;
     if (_iic_wait() == 0) {
 #ifdef DEBUG
         printf("iic_stop timed out!\n");
@@ -203,23 +206,23 @@ int _iic_stop(void) {
 
 int _iic_wait(void) {
     uint32_t counter = 0;
-    while (PIR3bits.SSP1IF == 0) {
+    while (PIR3bits.SSP2IF == 0) {
         counter++;
         if (counter >= IIC_TIMEOUT) {
-            PIR3bits.SSP1IF = 0;
+            PIR3bits.SSP2IF = 0;
 #ifdef DEBUG
             printf("iic_wait timed out!\n");
 #endif
             return 0; // wait failed
         }
     }
-    PIR3bits.SSP1IF = 0;
+    PIR3bits.SSP2IF = 0;
     return 1;
 }
 
 int _iic_wait_ack(void) {
     uint32_t counter = 0;
-    while (SSP1CON2bits.ACKSTAT == 1) {
+    while (SSP2CON2bits.ACKSTAT == 1) {
         counter++;
         if (counter >= IIC_TIMEOUT) {
 #ifdef DEBUG
@@ -233,7 +236,7 @@ int _iic_wait_ack(void) {
 
 int _iic_wait_buf(void) {
     uint32_t counter = 0;
-    while (SSP1STATbits.BF == 1) {
+    while (SSP2STATbits.BF == 1) {
         counter++;
         if (counter >= IIC_TIMEOUT) {
 #ifdef DEBUG

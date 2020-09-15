@@ -74,13 +74,13 @@ void main(void) {
     // main loop
     while (1) {
 //        int nack;
-//        printf("[main] write: %d\n", iic_write_byte(0x68, 0x10, &nack));
+//        printf("[main] write: %d\n", iic_write_byte(9, 0x10, &nack));
 //        printf("[main] nack : %d\n\n", nack);
 //
 //        char data = 1;
-//        printf("[main] read : %d\n", iic_read_byte(0x68, &data));
+//        printf("[main] read : %d\n", iic_read_byte(9, &data));
 //        printf("[main] data : %d\n\n", data);
-
+//
         while (MPU_Init()) {
             printf("MPU6050 Num:0 ID Error!\r\n");
             delay_ms(10);
